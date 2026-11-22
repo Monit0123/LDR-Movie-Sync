@@ -26,8 +26,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.nameInput.setText(SyncSession.savedName(this))
-        binding.serverInput.setText(SyncSession.savedServer(this))
+        val savedServer = SyncSession.savedServer(this)
+        binding.serverInput.setText(savedServer)
         binding.codeInput.setText(SyncSession.savedRoom(this))
+        // The bundled default is a placeholder — surface the field so it can be replaced.
+        if (savedServer.contains("example.com") || savedServer.startsWith("http://10.0.2.2")) {
+            binding.serverWrapper.visibility = View.VISIBLE
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
