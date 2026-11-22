@@ -156,11 +156,11 @@ struct ChatMessage: Identifiable, Equatable {
     let at = Date()
 }
 
-enum ConnectionState {
+enum ConnectionState: Equatable {
     case offline, connecting, online
 }
 
-enum EngineKind {
+enum EngineKind: Equatable {
     case native, web
 }
 
