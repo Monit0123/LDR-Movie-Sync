@@ -37,7 +37,7 @@ class WatchActivity : AppCompatActivity(), SyncSession.Observer {
     private var ignoreEventsUntil = 0L
     private var dragging = false
     private var waitingForPeer = false
-    private var lastHeartbeat = 0L
+    private var lastHeartbeat = 0.0
     private var lastRemote: JSONObject? = null
     private var chatDialog: BottomSheetDialog? = null
     private var chatBinding: DialogChatBinding? = null

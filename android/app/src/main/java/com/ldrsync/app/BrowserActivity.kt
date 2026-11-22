@@ -78,7 +78,6 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
             domStorageEnabled = true
             databaseEnabled = true
             mediaPlaybackRequiresUserGesture = false
-            setAllowsInlineMediaPlayback(true)
             useWideViewPort = true
             loadWithOverviewMode = true
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
