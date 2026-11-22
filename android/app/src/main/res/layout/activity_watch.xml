@@ -65,10 +65,7 @@
             android:id="@+id/playerView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@color/black"
-            app:resize_mode="fit"
-            app:show_buffering="never"
-            app:use_controller="false" />
+            android:background="@color/black" />
 
         <TextView
             android:id="@+id/idleText"

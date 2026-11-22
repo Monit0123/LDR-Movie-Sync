@@ -92,6 +92,8 @@ class WatchActivity : AppCompatActivity(), SyncSession.Observer {
         player = exo
         binding.playerView.player = exo
         binding.playerView.useController = false
+        binding.playerView.resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+        binding.playerView.setShowBuffering(androidx.media3.ui.PlayerView.SHOW_BUFFERING_NEVER)
 
         exo.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
