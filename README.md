@@ -69,12 +69,12 @@ Open the URL — that's the whole app. The same origin serves the web client, th
 
 ## 2. Install the apps
 
-Ready-built binaries live on the [**v1.0.0 release**](https://github.com/Monit0123/LDR-Movie-Sync/releases/latest):
+Ready-built binaries live on the [**v1.0.1 release**](https://github.com/Monit0123/LDR-Movie-Sync/releases/latest):
 
 | File | Install |
 |---|---|
-| `FlickSync-v1.0.0-debug.apk` | Android: open it, allow "install unknown apps". Debug-signed, so it installs directly. |
-| `FlickSync-v1.0.0.dmg` | macOS: open, drag **FlickSync** into Applications. Universal (Apple Silicon + Intel). |
+| `FlickSync-v1.0.1-debug.apk` | Android: open it, allow "install unknown apps". Debug-signed, so it installs directly. |
+| `FlickSync-v1.0.1.dmg` | macOS: open, drag **FlickSync** into Applications. Universal (Apple Silicon + Intel). |
 
 Both are built by CI on every push; tag `v1.0.1` (or any `v*`) to publish a fresh pair.
 To ship a *signed* store-ready APK, add `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`
