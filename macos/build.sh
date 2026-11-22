@@ -17,17 +17,30 @@ echo "▸ Compiling Swift ($CONFIG)…"
 if [[ "${1:-}" == "--native" ]]; then
   swift build -c "$CONFIG"
 else
-  if ! swift build -c "$CONFIG" --arch arm64 --arch x86_64 2>/tmp/flicksync-build.log; then
-    echo "  universal build unavailable, falling back to native arch"
+  if ! swift build -c "$CONFIG" --arch arm64 --arch x86_64 > /tmp/flicksync-universal.log 2>&1; then
+    echo "  universal build unavailable; details:"
+    tail -5 /tmp/flicksync-universal.log | sed 's/^/    /'
+    echo "  building for this machine's architecture instead"
     swift build -c "$CONFIG"
   fi
 fi
 
-BIN="$(swift build -c "$CONFIG" --show-bin-path)/FlickSync"
-if [[ ! -x "$BIN" ]]; then
-  echo "✗ build produced no binary at $BIN" >&2
+# The bin path differs between the plain and the --arch builds, so look for it.
+BIN=""
+for candidate in \
+  "$(swift build -c "$CONFIG" --show-bin-path 2>/dev/null)/FlickSync" \
+  ".build/release/FlickSync" \
+  ".build/apple/Products/Release/FlickSync"; do
+  if [[ -x "$candidate" ]]; then BIN="$candidate"; break; fi
+done
+if [[ -z "$BIN" ]]; then
+  BIN="$(find .build -type f -name FlickSync -perm -111 2>/dev/null | head -1)"
+fi
+if [[ -z "$BIN" || ! -x "$BIN" ]]; then
+  echo "✗ build produced no binary (looked in .build)" >&2
   exit 1
 fi
+echo "  binary: $BIN"
 
 echo "▸ Assembling app bundle…"
 rm -rf "$APP"
