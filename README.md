@@ -76,7 +76,7 @@ Ready-built binaries live on the [**v1.0.1 release**](https://github.com/Monit01
 | `FlickSync-v1.0.1-debug.apk` | Android: open it, allow "install unknown apps". Debug-signed, so it installs directly. |
 | `FlickSync-v1.0.1.dmg` | macOS: open, drag **FlickSync** into Applications. Universal (Apple Silicon + Intel). |
 
-Both are built by CI on every push; tag `v1.0.1` (or any `v*`) to publish a fresh pair.
+Both are built by CI on every push; tag `v1.0.2` (or any `v*`) to publish a fresh pair.
 To ship a *signed* store-ready APK, add `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`
 and `KEY_PASSWORD` as repository secrets — the workflow switches to `assembleRelease` on its own.
 
