@@ -172,7 +172,7 @@ struct SectionLabel: View {
     var body: some View {
         Text(text.uppercased())
             .font(.system(size: 10, weight: .semibold))
-            .tracking(1.4)
+            .kerning(1.4)
             .foregroundColor(Theme.faint)
     }
 }

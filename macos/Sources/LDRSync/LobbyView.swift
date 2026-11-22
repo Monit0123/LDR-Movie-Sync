@@ -131,7 +131,6 @@ struct LobbyView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: mono ? 13 : 13.5, weight: .regular, design: mono ? .monospaced : .default))
                 .foregroundColor(Theme.text)
-                .tracking(mono ? 1.6 : 0)
                 .padding(.horizontal, 12)
                 .frame(height: 40)
                 .background(

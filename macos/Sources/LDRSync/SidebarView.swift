@@ -137,7 +137,7 @@ struct SidebarView: View {
             if live {
                 Text("IN SYNC")
                     .font(.system(size: 8.5, weight: .bold))
-                    .tracking(0.8)
+                    .kerning(0.8)
                     .foregroundColor(Theme.ok)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)

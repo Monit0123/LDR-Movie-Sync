@@ -48,10 +48,10 @@ struct RoomView: View {
                 }
             } label: {
                 HStack(spacing: 7) {
-                    Text("ROOM").font(.system(size: 9, weight: .semibold)).tracking(1.2)
+                    Text("ROOM").font(.system(size: 9, weight: .semibold)).kerning(1.2)
                         .foregroundColor(Theme.faint)
                     Text(store.room).font(.system(size: 12, weight: .semibold, design: .monospaced))
-                        .foregroundColor(Theme.text).tracking(1.6)
+                        .foregroundColor(Theme.text).kerning(1.6)
                 }
             }
             .buttonStyle(PillButtonStyle())
