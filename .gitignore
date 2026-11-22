@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+server/node_modules/
+
+# builds
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/app/release/
+macos/.build/
+macos/dist/
+macos/.swiftpm/
+
+# editors / os
+.DS_Store
+*.swp
+.idea/
+.vscode/
+*.iml
+
+# secrets
+*.jks
+*.keystore
+keystore.properties
+.env

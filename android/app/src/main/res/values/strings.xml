@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FlickSync</string>
+    <string name="tagline">Two screens. One movie.</string>
+    <string name="lobby_sub">No screen sharing. Each phone or laptop buffers the same video at full quality, and the timing stays locked.</string>
+    <string name="your_name">Your name</string>
+    <string name="room_code">Room code</string>
+    <string name="join_room">Join room</string>
+    <string name="start_room">Start a new room</string>
+    <string name="server_address">Server address</string>
+    <string name="recently_watched">Recently watched</string>
+    <string name="waiting_connection">Connecting…</string>
+    <string name="waiting_partner">Waiting for them to join</string>
+    <string name="in_sync">In sync</string>
+    <string name="reconnecting">Reconnecting…</string>
+    <string name="nothing_playing">Paste a link to start watching together</string>
+    <string name="load">Load</string>
+    <string name="browse">Browse</string>
+    <string name="resync">Resync</string>
+    <string name="chat">Chat</string>
+    <string name="send">Send</string>
+    <string name="leave_room">Leave room</string>
+    <string name="buffering">Buffering…</string>
+    <string name="waiting_for_them">Waiting for them…</string>
+    <string name="open_browser_hint">Opens any page in the built-in browser; whatever video plays there is synced.</string>
+    <string name="chat_placeholder">Say something…</string>
+    <string name="chat_title">Chat</string>
+    <string name="share_watching">Let them watch what I watch</string>
+    <string name="no_video_found">No video found on that page yet. Press play on it and it will sync.</string>
+    <string name="permission_mic_unused">FlickSync never records audio or video.</string>
+</resources>

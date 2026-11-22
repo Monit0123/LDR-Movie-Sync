@@ -1,0 +1,16 @@
+# One-click deploy on Render (free tier is plenty: it only relays tiny messages).
+# Dashboard → New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: flicksync
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
