@@ -24,3 +24,4 @@ macos/.swiftpm/
 *.keystore
 keystore.properties
 .env
+ci-*-build.log
