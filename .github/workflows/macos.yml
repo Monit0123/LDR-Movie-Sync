@@ -17,6 +17,8 @@ jobs:
   build:
     name: Build DMG
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -26,13 +28,32 @@ jobs:
           swift --version
 
       - name: Build app + dmg
+        id: build
+        continue-on-error: true
         working-directory: macos
         run: |
           chmod +x build.sh
-          ./build.sh
+          set -o pipefail
+          ./build.sh 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Publish build log to branch
+        if: always()
+        run: |
+          set +e
+          tail -c 200000 "$RUNNER_TEMP/build.log" > ci-macos-build.log 2>/dev/null || echo "no log" > ci-macos-build.log
+          git config user.name "ci-bot"
+          git config user.email "ci@flicksync.local"
+          git add -f ci-macos-build.log
+          git commit -m "ci: macos build log [skip ci]" || true
+          git push origin HEAD:${GITHUB_REF_NAME} || true
 
       - uses: actions/upload-artifact@v4
+        if: steps.build.outcome == 'success'
         with:
           name: FlickSync-dmg
           path: macos/dist/FlickSync.dmg
           if-no-files-found: error
+
+      - name: Fail when the build failed
+        if: steps.build.outcome != 'success'
+        run: exit 1
