@@ -1,6 +1,6 @@
 FlickSync downloads/FlickSync-Mac.dmg
 checked on: macOS 26.7.2 (arm64)
-checked at: 2026-11-23T07:50:53Z
+checked at: 2026-11-23T08:54:59Z
 sha256: 502162a88f94216a67f6c83d39d12269e74f60334a33131dee62e4f61c2c5aca
 size: 1296169 bytes
 
@@ -23,7 +23,7 @@ Format: UDZO
 attach: /dev/disk8s1        	41504653-0000-11AA-AA11-0030654	/private/tmp/flicksync_mnt
 total 0
 drwxr-xr-x  4 runner  staff  128 Nov 23 07:46 .
-drwxrwxrwt  3 root    wheel   96 Nov 23 07:50 ..
+drwxrwxrwt  3 root    wheel   96 Nov 23 08:55 ..
 lrwxr-xr-x  1 runner  staff   13 Nov 23 07:46 Applications -> /Applications
 drwxr-xr-x  3 runner  staff   96 Nov 23 07:46 FlickSync.app
 
@@ -73,8 +73,8 @@ Architectures in the fat file: /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/F
   bridge.js exposes __flicksync: 5
 
 --- launch smoke test (10s) ---
-  process alive after 8s: yes (pid 2176)
+  process alive after 8s: yes (pid 2074)
   stderr/stdout:
-/Users/runner/work/_temp/33338bbc-9153-47cf-8dfe-4a8fa474dbb6.sh: line 58:  2176 Terminated: 15          "$APP/Contents/MacOS/FlickSync" > /tmp/flicksync_run.log 2>&1
+/Users/runner/work/_temp/0d565fca-6a0a-4304-8429-a3d92b594174.sh: line 58:  2074 Terminated: 15          "$APP/Contents/MacOS/FlickSync" > /tmp/flicksync_run.log 2>&1
 
 --- end ---
