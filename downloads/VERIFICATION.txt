@@ -1,8 +1,8 @@
 FlickSync downloads/FlickSync-Mac.dmg
 checked on: macOS 26.7.2 (arm64)
-checked at: 2026-11-23T07:38:32Z
-sha256: 05afeb3512ebc9ca572a08b4abbea2ea7becd2df52608374d96ca7503019eabd
-size: 1296177 bytes
+checked at: 2026-11-23T07:50:53Z
+sha256: 502162a88f94216a67f6c83d39d12269e74f60334a33131dee62e4f61c2c5aca
+size: 1296169 bytes
 
 --- dmg ---
 Class Name: CUDIFDiskImage
@@ -22,10 +22,10 @@ Format: UDZO
 --- mount ---
 attach: /dev/disk8s1        	41504653-0000-11AA-AA11-0030654	/private/tmp/flicksync_mnt
 total 0
-drwxr-xr-x  4 runner  staff  128 Nov 22 20:25 .
-drwxrwxrwt  3 root    wheel   96 Nov 23 07:38 ..
-lrwxr-xr-x  1 runner  staff   13 Nov 22 20:25 Applications -> /Applications
-drwxr-xr-x  3 runner  staff   96 Nov 22 20:25 FlickSync.app
+drwxr-xr-x  4 runner  staff  128 Nov 23 07:46 .
+drwxrwxrwt  3 root    wheel   96 Nov 23 07:50 ..
+lrwxr-xr-x  1 runner  staff   13 Nov 23 07:46 Applications -> /Applications
+drwxr-xr-x  3 runner  staff   96 Nov 23 07:46 FlickSync.app
 
 --- app bundle ---
 FlickSync.app
@@ -42,7 +42,7 @@ FlickSync.app/Contents/PkgInfo
 
 --- sizes ---
 3.1M	/tmp/flicksync_mnt/FlickSync.app
--rwxr-xr-x  1 runner  staff  2868720 Nov 22 20:25 /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync
+-rwxr-xr-x  1 runner  staff  2868720 Nov 23 07:46 /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync
 
 --- architectures ---
 Architectures in the fat file: /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync are: x86_64 arm64 
@@ -68,13 +68,13 @@ Architectures in the fat file: /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/F
 
 --- bundled resources ---
   total 624
-  -rw-r--r--  1 runner  staff  308617 Nov 22 20:25 AppIcon.icns
-  -rw-r--r--  1 runner  staff    4696 Nov 22 20:25 bridge.js
+  -rw-r--r--  1 runner  staff  308617 Nov 23 07:46 AppIcon.icns
+  -rw-r--r--  1 runner  staff    4696 Nov 23 07:46 bridge.js
   bridge.js exposes __flicksync: 5
 
 --- launch smoke test (10s) ---
-  process alive after 8s: yes (pid 1241)
+  process alive after 8s: yes (pid 2176)
   stderr/stdout:
-/Users/runner/work/_temp/d77540c1-b579-4622-b65c-43c18f19c136.sh: line 58:  1241 Terminated: 15          "$APP/Contents/MacOS/FlickSync" > /tmp/flicksync_run.log 2>&1
+/Users/runner/work/_temp/33338bbc-9153-47cf-8dfe-4a8fa474dbb6.sh: line 58:  2176 Terminated: 15          "$APP/Contents/MacOS/FlickSync" > /tmp/flicksync_run.log 2>&1
 
 --- end ---
