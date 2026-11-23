@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -110,6 +111,22 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
                 listOf(600L, 1800L, 4000L).forEach { delay ->
                     binding.webView.postDelayed({ inject() }, delay)
                 }
+            }
+
+            /**
+             * A relay older than this build has no /embed shim, so the bounce
+             * page 404s. Go straight to the player instead of showing an error.
+             */
+            override fun onReceivedHttpError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                errorResponse: WebResourceResponse?,
+            ) {
+                val url = request?.url?.toString() ?: return
+                val status = errorResponse?.statusCode ?: 0
+                if (status !in 400..499) return
+                val original = Embeds.unwrap(url, relayBase()) ?: return
+                load(original, Embeds.referer(relayBase()))
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
