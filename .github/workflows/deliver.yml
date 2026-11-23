@@ -1,0 +1,53 @@
+name: Deliver binaries
+
+# Copies the compiled installers from the release into the working tree so they
+# can be handed over directly (release assets themselves are served from a
+# storage host that some networks — including this sandbox — cannot reach).
+on:
+  push:
+    branches: [main, "arena/**"]
+    paths:
+      - ".github/workflows/deliver.yml"
+      - "downloads/.trigger"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deliver:
+    name: Copy APK + DMG into the repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+          echo "latest release: $tag"
+          rm -f downloads/*.apk downloads/*.dmg
+          mkdir -p downloads
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir downloads --clobber
+          ls -l downloads
+
+      - name: Rename for humans
+        run: |
+          set -euo pipefail
+          apk=$(ls downloads/*.apk | head -1)
+          dmg=$(ls downloads/*.dmg | head -1)
+          mv "$apk" downloads/FlickSync-Android.apk
+          mv "$dmg" downloads/FlickSync-Mac.dmg
+          ls -l downloads
+          sha256sum downloads/*.apk downloads/*.dmg | sed 's|downloads/||' | tee downloads/SHA256SUMS.txt
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name "ci-bot"
+          git config user.email "ci@flicksync.local"
+          git add -f downloads/
+          git commit -m "build: add compiled APK and DMG [skip ci]" || echo "nothing to commit"
+          git push origin "HEAD:${{ github.ref_name }}"

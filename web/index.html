@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0b10" />
+<title>FlickSync — watch together</title>
+<meta name="description" content="Two devices, one movie. Playback stays native and local on each side; only the timing is synced." />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<div id="app" class="app is-lobby">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="2" y="7" width="19" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.2"/>
+        <rect x="14" y="3" width="16" height="15" rx="3.5" fill="var(--accent)" opacity=".92"/>
+        <path d="M19 8.2v5.4l4.2-2.7z" fill="#0b0b10"/>
+      </svg>
+      <span>Flick<b>Sync</b></span>
+    </div>
+
+    <div class="topbar-right">
+      <div id="peersStrip" class="peers" aria-live="polite"></div>
+      <button id="roomChip" class="chip chip-room" type="button" title="Copy invite link">
+        <span class="chip-label">Room</span>
+        <b id="roomCode">——</b>
+        <svg viewBox="0 0 24 24" class="chip-icon" aria-hidden="true"><path d="M9 9h9v9H9z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 15V6h9" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
+      <button id="sideToggle" class="icon-btn only-mobile" type="button" aria-label="Open panel">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage" id="stage">
+      <div class="screen" id="screen">
+        <video id="video" playsinline preload="metadata"></video>
+        <div id="embedHolder" class="embed-holder" hidden></div>
+
+        <div class="screen-idle" id="screenIdle">
+          <div class="idle-art" aria-hidden="true">
+            <div class="reel"></div>
+          </div>
+          <h2>Nothing playing yet</h2>
+          <p>Paste a link, or start something from the panel.<br />Whatever you load here loads on their screen too.</p>
+          <div class="idle-samples" id="idleSamples"></div>
+        </div>
+
+        <div class="screen-badge" id="bufferBadge" hidden>
+          <span class="spinner"></span><span id="bufferText">Buffering…</span>
+        </div>
+
+        <button class="unmute" id="unmuteBtn" hidden type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l4 3.5v-11L7 10H4z" fill="currentColor"/><path d="M15 9.5a4 4 0 010 5M17.8 7a7.5 7.5 0 010 10" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+          Tap for sound
+        </button>
+
+        <div class="stage-tools">
+          <button class="ghost-pill" id="copyStateBtn" type="button" title="Send my exact position to them">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1114 5.3M4 12V7m0 5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Resync
+          </button>
+          <button class="ghost-pill" id="theaterBtn" type="button" title="Theater mode">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <span class="hide-small">Theater</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="controls" id="controls">
+        <button class="play-btn" id="playProxy" type="button" aria-label="Play/pause">
+          <svg viewBox="0 0 24 24" class="i-play"><path d="M8 5.5l11 6.5-11 6.5z" fill="currentColor"/></svg>
+          <svg viewBox="0 0 24 24" class="i-pause"><path d="M7.5 5h3.4v14H7.5zM13.1 5h3.4v14h-3.4z" fill="currentColor"/></svg>
+        </button>
+
+        <div class="timeline">
+          <input id="seek" class="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek" />
+          <div class="time-row">
+            <span id="timeNow">0:00</span>
+            <span class="dot-sep">/</span>
+            <span id="timeTotal">0:00</span>
+            <span class="spacer"></span>
+            <span id="syncState" class="sync-state" data-state="idle">
+              <i></i><span id="syncLabel">Not connected</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="vol">
+          <button class="icon-btn" id="muteBtn" type="button" aria-label="Mute">
+            <svg viewBox="0 0 24 24"><path d="M4 10v4h3l4 3.5v-11L7 10H4z" fill="currentColor"/><path class="vol-wave" d="M15 9.5a4 4 0 010 5M17.8 7a7.5 7.5 0 010 10" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/><path class="vol-cross" d="M15 9.5l5 5M20 9.5l-5 5" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></svg>
+          </button>
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volume" />
+        </div>
+
+        <button class="icon-btn" id="fullBtn" type="button" aria-label="Fullscreen">
+          <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div class="stage-note" id="stageNote" hidden></div>
+    </section>
+
+    <aside class="panel" id="panel">
+      <div class="panel-head">
+        <div class="tabs" role="tablist">
+          <button class="tab is-active" data-tab="watch" role="tab">Watch</button>
+          <button class="tab" data-tab="chat" role="tab">Chat <span class="tab-dot" id="chatDot" hidden></span></button>
+        </div>
+        <button class="icon-btn only-mobile" id="sideClose" type="button" aria-label="Close panel">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div class="panel-body" id="tabWatch">
+        <form class="url-form" id="urlForm" autocomplete="off">
+          <label class="field">
+            <span class="field-label">Link to a video or page</span>
+            <div class="field-row">
+              <input id="urlInput" type="text" inputmode="url" placeholder="dailymotion.com/video/x8… or .mp4 / .m3u8" spellcheck="false" />
+              <button id="loadBtn" class="btn-primary" type="submit">Load</button>
+            </div>
+          </label>
+        </form>
+        <div class="quick-sites" id="quickSites"></div>
+
+        <div class="section">
+          <div class="section-head"><h3>Who's here</h3><span id="peerCount" class="muted">0</span></div>
+          <ul class="peer-list" id="peerList"></ul>
+        </div>
+
+        <div class="section">
+          <div class="section-head"><h3>Playback</h3></div>
+          <label class="switch-row">
+            <span>
+              <b>Wait for each other</b>
+              <small>Pause when their side is buffering</small>
+            </span>
+            <input type="checkbox" id="optWait" checked /><i class="switch"></i>
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>Auto-correct drift</b>
+              <small>Jump back in line if you fall behind</small>
+            </span>
+            <input type="checkbox" id="optDrift" checked /><i class="switch"></i>
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>Reduce quality on mobile data</b>
+              <small>Caps streams so her phone keeps up</small>
+            </span>
+            <input type="checkbox" id="optData" /><i class="switch"></i>
+          </label>
+        </div>
+
+        <div class="section" id="recentSection" hidden>
+          <div class="section-head"><h3>Recently watched</h3></div>
+          <ul class="recent-list" id="recentList"></ul>
+        </div>
+
+        <p class="fineprint">
+          Playback is always native on each device — the server only ever sees a timestamp and a URL.
+        </p>
+      </div>
+
+      <div class="panel-body panel-chat" id="tabChat" hidden>
+        <ul class="messages" id="messages"></ul>
+        <div class="reactions" id="reactions"></div>
+        <form class="chat-form" id="chatForm" autocomplete="off">
+          <input id="chatInput" type="text" placeholder="Say something…" maxlength="500" />
+          <button class="btn-send" type="submit" aria-label="Send">
+            <svg viewBox="0 0 24 24"><path d="M4 12l16-7-6 16-3.2-6.2z" fill="currentColor"/></svg>
+          </button>
+        </form>
+      </div>
+    </aside>
+  </main>
+
+  <div class="scrim" id="scrim"></div>
+
+  <!-- lobby -->
+  <div class="lobby" id="lobby">
+    <div class="lobby-card">
+      <div class="lobby-art" aria-hidden="true"><div class="reel big"></div></div>
+      <h1>Two screens.<br /><span>One movie.</span></h1>
+      <p class="lobby-sub">No screen sharing. Each of you buffers the same video at full quality, and the timing stays locked.</p>
+
+      <div class="lobby-forms">
+        <form id="joinForm" class="lobby-form" autocomplete="off">
+          <label class="field">
+            <span class="field-label">Your name</span>
+            <input id="nameInput" type="text" maxlength="24" placeholder="Ana" required />
+          </label>
+          <label class="field">
+            <span class="field-label">Room code</span>
+            <input id="codeInput" type="text" maxlength="8" placeholder="AB12CD" spellcheck="false" autocapitalize="characters" />
+          </label>
+          <div
+            class="lobby-actions"><button class="btn-primary wide" type="submit">Join room</button></div>
+        </form>
+
+        <div class="or"><span>or</span></div>
+
+        <button id="createBtn" class="btn-ghost wide" type="button">Start a new room</button>
+        <p class="lobby-hint" id="lobbyHint">Share the code (or the invite link) with your other half.</p>
+      </div>
+
+      <div class="lobby-foot">
+        <span id="serverState" class="server-state">Connecting…</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

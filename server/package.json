@@ -1,0 +1,17 @@
+{
+  "name": "ldr-sync-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tiny WebSocket relay that keeps movie playback in sync between two devices.",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

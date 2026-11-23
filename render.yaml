@@ -1,3 +1,5 @@
+# One-click deploy on Render (free tier is plenty: it only relays tiny messages).
+# Dashboard → New → Blueprint → pick this repo.
 services:
   - type: web
     name: flicksync

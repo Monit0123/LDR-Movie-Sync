@@ -1,0 +1,93 @@
+name: Verify DMG
+
+# Mounts the shipped DMG on a real Mac and writes a report next to it, so the
+# binary can be trusted without opening it first.
+on:
+  push:
+    branches: [main, "arena/**"]
+    paths:
+      - ".github/workflows/verify-dmg.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Mount and inspect FlickSync.app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inspect
+        run: |
+          set -uo pipefail
+          DMG=downloads/FlickSync-Mac.dmg
+          REPORT=downloads/VERIFICATION.txt
+          {
+            echo "FlickSync $DMG"
+            echo "checked on: $(sw_vers -productName) $(sw_vers -productVersion) ($(uname -m))"
+            echo "checked at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "sha256: $(shasum -a 256 "$DMG" | cut -d' ' -f1)"
+            echo "size: $(stat -f%z "$DMG") bytes"
+            echo
+            echo "--- dmg ---"
+            hdiutil imageinfo "$DMG" | grep -E "Format:|Class Name:|Checksum Type:" || true
+            echo
+            echo "--- mount ---"
+            MOUNT=$(hdiutil attach "$DMG" -nobrowse -readonly -mountpoint /tmp/flicksync_mnt | tail -1)
+            echo "attach: $MOUNT"
+            ls -la /tmp/flicksync_mnt
+            echo
+            echo "--- app bundle ---"
+            APP=/tmp/flicksync_mnt/FlickSync.app
+            find "$APP" -maxdepth 3 -print | sed "s|$APP|FlickSync.app|"
+            echo
+            echo "--- sizes ---"
+            du -sh "$APP"
+            ls -l "$APP/Contents/MacOS/FlickSync"
+            echo
+            echo "--- architectures ---"
+            lipo -info "$APP/Contents/MacOS/FlickSync" || file "$APP/Contents/MacOS/FlickSync"
+            echo
+            echo "--- signature ---"
+            codesign -dv --verbose=2 "$APP" 2>&1 | sed 's/^/  /'
+            codesign --verify --deep --strict "$APP" 2>&1 && echo "  signature verify: OK" || echo "  signature verify: FAILED"
+            echo
+            echo "--- Info.plist ---"
+            for key in CFBundleIdentifier CFBundleShortVersionString CFBundleExecutable LSMinimumSystemVersion CFBundleIconFile; do
+              echo "  $key = $(defaults read "$APP/Contents/Info" "$key" 2>/dev/null)"
+            done
+            echo
+            echo "--- bundled resources ---"
+            ls -l "$APP/Contents/Resources" | sed 's/^/  /'
+            echo "  bridge.js exposes __flicksync: $(grep -c '__flicksync' "$APP/Contents/Resources/bridge.js" 2>/dev/null)"
+            echo
+            echo "--- launch smoke test (10s) ---"
+            "$APP/Contents/MacOS/FlickSync" >/tmp/flicksync_run.log 2>&1 &
+            PID=$!
+            sleep 8
+            if kill -0 $PID 2>/dev/null; then
+              echo "  process alive after 8s: yes (pid $PID)"
+              kill $PID 2>/dev/null
+            else
+              echo "  process alive after 8s: NO"
+            fi
+            echo "  stderr/stdout:"
+            sed 's/^/    /' /tmp/flicksync_run.log || true
+            echo
+            hdiutil detach /tmp/flicksync_mnt -quiet || true
+            echo "--- end ---"
+          } > "$REPORT" 2>&1
+          cat "$REPORT"
+
+      - name: Commit report
+        run: |
+          set -euo pipefail
+          git config user.name "ci-bot"
+          git config user.email "ci@flicksync.local"
+          git add -f downloads/VERIFICATION.txt
+          git commit -m "build: dmg verification report [skip ci]" || echo "nothing to commit"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+# refreshed 2026-11-23T07:50:45Z

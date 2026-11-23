@@ -1,0 +1,38 @@
+name: macOS DMG
+
+on:
+  push:
+    branches: [main, "arena/**"]
+    paths:
+      - "macos/**"
+      - "shared/**"
+      - ".github/workflows/macos.yml"
+  pull_request:
+    paths:
+      - "macos/**"
+      - "shared/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build DMG
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Build app + dmg
+        working-directory: macos
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FlickSync-dmg
+          path: macos/dist/FlickSync.dmg
+          if-no-files-found: error

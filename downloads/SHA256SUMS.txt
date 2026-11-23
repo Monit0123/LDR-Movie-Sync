@@ -1,0 +1,2 @@
+9a814c28aa6c43be95bd701a9bce0eb4078ce13c901ded8a1fdaf36a6bc908c5  FlickSync-Android.apk
+502162a88f94216a67f6c83d39d12269e74f60334a33131dee62e4f61c2c5aca  FlickSync-Mac.dmg
