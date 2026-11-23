@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - ".github/workflows/verify-dmg.yml"
+      - "downloads/.trigger"
   workflow_dispatch:
 
 permissions:
