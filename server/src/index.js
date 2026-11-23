@@ -5,6 +5,7 @@ import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { attachRelay, Rooms, normaliseCode } from './relay.js';
 import { resolveUrl } from './extract.js';
+import { renderShim } from './shim.js';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const WEB_ROOT = resolve(here, '../../web');
@@ -48,6 +49,17 @@ const server = createServer(async (req, res) => {
     }
   }
 
+  // ---- referrer shim -----------------------------------------------------
+  // YouTube refuses to start a player whose request carries no HTTP Referer
+  // ("Video player configuration error, error 153"). A WebView that navigates
+  // straight to /embed/ sends none. This page is served from *our* origin and
+  // bounces to the player, so the player sees a real referrer.
+  if (url.pathname === '/embed') {
+    const shim = renderShim(url.searchParams.get('u') || url.searchParams.get('url'));
+    if (shim.target) log(`embed shim -> ${shim.target}`);
+    return html(res, shim.status, shim.html);
+  }
+
   if (req.method === 'OPTIONS') {
     return json(res, 204, null, { 'access-control-allow-origin': '*' });
   }
@@ -59,6 +71,16 @@ const server = createServer(async (req, res) => {
 
   return json(res, 405, { ok: false, error: 'method not allowed' });
 });
+
+function html(res, status, body) {
+  res.writeHead(status, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'referrer-policy': 'strict-origin-when-cross-origin',
+    'x-content-type-options': 'nosniff',
+  });
+  return res.end(body);
+}
 
 async function serveStatic(pathname, req, res) {
   let relative = decodeURIComponent(pathname).replace(/^\/+/, '');

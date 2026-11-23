@@ -205,7 +205,7 @@ final class SyncStore: ObservableObject {
             hasItem = false
             webPaused = paused
             webPosition = startAt
-            webURL = incoming.browserURL
+            webURL = EmbedShim.wrap(incoming.browserURL, relay: Defaults.server)
             isPlaying = !paused
             if !paused {
                 webCommand = WebCommand(action: "play", position: startAt, tolerance: 1.2)

@@ -150,6 +150,10 @@ Details that make it feel effortless:
   show a *Tap for sound* pill; after one tap it's unlocked for the session.
 * **Twitch** is best-effort (the embed requires a matching parent domain); direct `.m3u8` is
   better when available.
+* **"Video player configuration error, error 153"** is YouTube refusing to start a player whose
+  request carried no `Referer`. The apps bounce the navigation through the relay
+  (`/embed?u=…`, a real page on your own origin) so the player always gets one. If you still see
+  153, that app is older than v1.0.3.
 
 ---
 

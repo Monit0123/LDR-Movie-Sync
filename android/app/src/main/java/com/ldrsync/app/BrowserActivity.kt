@@ -30,6 +30,8 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     private var lastEvent: JSONObject? = null
     private var lastRemote: JSONObject? = null
     private var sharedKey: String? = null
+    /** What we last asked the WebView to load (before any redirect). */
+    private var loadedTarget: String? = null
     private var suppressShareUntil = 0L
     private var pendingPosition: Double? = null
     private var pendingPlaying = false
@@ -155,10 +157,20 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     }
 
     private fun load(url: String) {
-        binding.webView.loadUrl(url)
+        loadedTarget = url
+        val relay = relayBase()
+        val target = Embeds.wrap(url, relay)
+        when {
+            target != url -> binding.webView.loadUrl(target)
+            // No relay to bounce through: give the player a referrer directly.
+            Embeds.isEmbedUrl(url) -> binding.webView.loadUrl(url, mapOf("Referer" to Embeds.referer(relay)))
+            else -> binding.webView.loadUrl(url)
+        }
         binding.webView.requestFocus()
         renderStatus()
     }
+
+    private fun relayBase(): String = SyncSession.serverUrl.ifBlank { SyncSession.savedServer(this) }
 
     private fun inject() {
         binding.webView.evaluateJavascript(Bridge.script(this), null)
@@ -232,7 +244,9 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     private fun shareCurrent(force: Boolean) {
         val event = lastEvent
         val client = SyncSession.client ?: return
-        val pageUrl = event?.optString("url")?.ifBlank { null } ?: binding.webView.url ?: return
+        val reported = event?.optString("url")?.ifBlank { null } ?: binding.webView.url ?: return
+        // Never share the relay's bounce page — share the player behind it.
+        val pageUrl = Embeds.unwrap(reported, relayBase()) ?: reported
         if (SystemClock.elapsedRealtime() < suppressShareUntil && !force) return
 
         val rawSrc = event?.optString("src").orEmpty()
@@ -315,7 +329,7 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
                 val target = incoming.browserUrl() ?: incoming.pageUrl ?: return
                 pendingPosition = position
                 pendingPlaying = !paused
-                if (binding.webView.url != target) load(target) else applyToPage(if (paused) "pause" else "play", position)
+                if (loadedTarget != target) load(target) else applyToPage(if (paused) "pause" else "play", position)
             }
 
             "play", "pause", "seek", "rate" -> {
