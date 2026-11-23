@@ -4,9 +4,9 @@ name: Verify DMG
 # binary can be trusted without opening it first.
 on:
   push:
+    branches: [main, "arena/**"]
     paths:
       - ".github/workflows/verify-dmg.yml"
-      - "downloads/.trigger"
   workflow_dispatch:
 
 permissions:

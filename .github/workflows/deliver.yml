@@ -5,6 +5,7 @@ name: Deliver binaries
 # storage host that some networks — including this sandbox — cannot reach).
 on:
   push:
+    branches: [main, "arena/**"]
     paths:
       - ".github/workflows/deliver.yml"
       - "downloads/.trigger"
@@ -40,7 +41,7 @@ jobs:
           mv "$apk" downloads/FlickSync-Android.apk
           mv "$dmg" downloads/FlickSync-Mac.dmg
           ls -l downloads
-          sha256sum downloads/* | tee downloads/SHA256SUMS.txt
+          sha256sum downloads/*.apk downloads/*.dmg | sed 's|downloads/||' | tee downloads/SHA256SUMS.txt
 
       - name: Commit
         run: |
