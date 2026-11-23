@@ -89,3 +89,5 @@ jobs:
           git add -f downloads/VERIFICATION.txt
           git commit -m "build: dmg verification report [skip ci]" || echo "nothing to commit"
           git push origin "HEAD:${{ github.ref_name }}"
+
+# refreshed 2026-11-23T07:50:45Z
