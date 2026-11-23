@@ -1,0 +1,80 @@
+FlickSync downloads/FlickSync-Mac.dmg
+checked on: macOS 26.7.2 (arm64)
+checked at: 2026-11-23T07:38:32Z
+sha256: 05afeb3512ebc9ca572a08b4abbea2ea7becd2df52608374d96ca7503019eabd
+size: 1296177 bytes
+
+--- dmg ---
+Class Name: CUDIFDiskImage
+Checksum Type: CRC32
+		Checksum Type: CRC32
+		Checksum Type: CRC32
+		Checksum Type: CRC32
+		Checksum Type: CRC32
+		Checksum Type: CRC32
+		Checksum Type: CRC32
+		Checksum Type: CRC32
+		Checksum Type: CRC32
+Format: UDZO
+	Class Name: CUDIFEncoding
+		Class Name: CBSDBackingStore
+
+--- mount ---
+attach: /dev/disk8s1        	41504653-0000-11AA-AA11-0030654	/private/tmp/flicksync_mnt
+total 0
+drwxr-xr-x  4 runner  staff  128 Nov 22 20:25 .
+drwxrwxrwt  3 root    wheel   96 Nov 23 07:38 ..
+lrwxr-xr-x  1 runner  staff   13 Nov 22 20:25 Applications -> /Applications
+drwxr-xr-x  3 runner  staff   96 Nov 22 20:25 FlickSync.app
+
+--- app bundle ---
+FlickSync.app
+FlickSync.app/Contents
+FlickSync.app/Contents/_CodeSignature
+FlickSync.app/Contents/_CodeSignature/CodeResources
+FlickSync.app/Contents/MacOS
+FlickSync.app/Contents/MacOS/FlickSync
+FlickSync.app/Contents/Resources
+FlickSync.app/Contents/Resources/bridge.js
+FlickSync.app/Contents/Resources/AppIcon.icns
+FlickSync.app/Contents/Info.plist
+FlickSync.app/Contents/PkgInfo
+
+--- sizes ---
+3.1M	/tmp/flicksync_mnt/FlickSync.app
+-rwxr-xr-x  1 runner  staff  2868720 Nov 22 20:25 /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync
+
+--- architectures ---
+Architectures in the fat file: /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync are: x86_64 arm64 
+
+--- signature ---
+  Executable=/private/tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync
+  Identifier=com.ldrsync.flicksync
+  Format=app bundle with Mach-O universal (x86_64 arm64)
+  CodeDirectory v=20400 size=2926 flags=0x2(adhoc) hashes=85+3 location=embedded
+  Signature=adhoc
+  Info.plist entries=16
+  TeamIdentifier=not set
+  Sealed Resources version=2 rules=13 files=2
+  Internal requirements count=0 size=12
+  signature verify: OK
+
+--- Info.plist ---
+  CFBundleIdentifier = com.ldrsync.flicksync
+  CFBundleShortVersionString = 1.0.0
+  CFBundleExecutable = FlickSync
+  LSMinimumSystemVersion = 12.0
+  CFBundleIconFile = AppIcon
+
+--- bundled resources ---
+  total 624
+  -rw-r--r--  1 runner  staff  308617 Nov 22 20:25 AppIcon.icns
+  -rw-r--r--  1 runner  staff    4696 Nov 22 20:25 bridge.js
+  bridge.js exposes __flicksync: 5
+
+--- launch smoke test (10s) ---
+  process alive after 8s: yes (pid 1241)
+  stderr/stdout:
+/Users/runner/work/_temp/d77540c1-b579-4622-b65c-43c18f19c136.sh: line 58:  1241 Terminated: 15          "$APP/Contents/MacOS/FlickSync" > /tmp/flicksync_run.log 2>&1
+
+--- end ---
