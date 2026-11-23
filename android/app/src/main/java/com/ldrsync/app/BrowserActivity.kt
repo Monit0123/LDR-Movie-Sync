@@ -171,8 +171,17 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
         val source = Source.guess(url)
         SyncSession.rememberLocal(source, 0.0, false)
         SyncSession.client?.load(source, 0.0, false)
+        pausePageVideos()
         startActivity(Intent(this, WatchActivity::class.java))
         finish()
+    }
+
+    /** Silence the page before the native player takes over. */
+    private fun pausePageVideos() {
+        binding.webView.evaluateJavascript(
+            "try{document.querySelectorAll('video').forEach(function(v){try{v.pause();}catch(e){}});}catch(e){}",
+            null,
+        )
     }
 
     // -------------------------------------------------------------- page events
@@ -297,7 +306,9 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
                 if (!incoming.isBrowserOnly && !incoming.isEmbed) {
                     // Direct media: native player does it better.
                     SyncSession.rememberLocal(incoming, position, paused)
+                    pausePageVideos()
                     startActivity(Intent(this, WatchActivity::class.java))
+                    finish()
                     return
                 }
 

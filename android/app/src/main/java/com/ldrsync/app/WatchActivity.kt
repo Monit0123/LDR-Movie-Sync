@@ -280,6 +280,16 @@ class WatchActivity : AppCompatActivity(), SyncSession.Observer {
             // Platform players and arbitrary pages need a real browser engine.
             val url = src.browserUrl()
             if (url != null) {
+                // Don't let the previous native video keep playing audio under the browser.
+                applyingRemote = true
+                player?.let {
+                    it.pause()
+                    it.stop()
+                    it.clearMediaItems()
+                }
+                applyingRemote = false
+                binding.idleText.text = "Playing in the browser tab"
+                binding.idleText.visibility = View.VISIBLE
                 openBrowser(url, share = false)
                 if (broadcast) SyncSession.client?.load(src, position, paused)
             } else {
