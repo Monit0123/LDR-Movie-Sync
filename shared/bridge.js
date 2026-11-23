@@ -6,6 +6,13 @@
  *
  * It finds the page's real <video>, reports its state, and accepts commands.
  * Sites replace their <video> on quality changes, so everything re-scans.
+ *
+ * Most streaming sites do not put the player in the top document: the watch
+ * page embeds a *different host* (vidsrc, 2embed, an embed.su-style player) in
+ * an <iframe>, and the <video> lives in there. A page script can never reach
+ * into a cross-origin frame, so when we find no <video> we report the frames we
+ * can see. The native side then navigates *into* the best one — after that the
+ * player is the top document and this script can drive it.
  */
 (function () {
   if (window.__flicksync) {
@@ -13,7 +20,13 @@
     return;
   }
 
-  var S = { video: null, lastEmit: 0 };
+  var S = { video: null, lastEmit: 0, lastFrames: 0, frameSig: '' };
+
+  // Frames we would rather open: player-ish URLs, decent size.
+  var FRAME_HINT = /(embed|player|watch|video|movie|stream|play|media|vsrc|vidlink|2embed)/i;
+  // Frames that are never the player: ad slots and trackers.
+  var FRAME_NOISE =
+    /(doubleclick|googlesyndication|adservice|adsystem|adnxs|taboola|outbrain|popunder|banner|promo|analytics|facebook\.com|google\.com\/recaptcha)/i;
 
   function post(obj) {
     var payload;
@@ -72,8 +85,28 @@
     });
   }
 
+  /**
+   * Every <video> we are allowed to touch. Same-origin frames are fair game —
+   * plenty of sites put the player in a frame served from their own host.
+   */
+  function collectVideos(root, out, depth) {
+    if (!root || depth > 2) return out;
+    var found = [];
+    try { found = root.querySelectorAll ? root.querySelectorAll('video') : []; } catch (e) { found = []; }
+    for (var i = 0; i < found.length; i++) out.push(found[i]);
+
+    var frames = [];
+    try { frames = root.querySelectorAll ? root.querySelectorAll('iframe') : []; } catch (e) { frames = []; }
+    for (var j = 0; j < frames.length; j++) {
+      var doc = null;
+      try { doc = frames[j].contentDocument; } catch (e) { doc = null; } // cross-origin → null
+      if (doc) collectVideos(doc, out, depth + 1);
+    }
+    return out;
+  }
+
   function pick() {
-    var list = Array.prototype.slice.call(document.querySelectorAll('video'));
+    var list = collectVideos(document, [], 0);
     if (!list.length) return null;
     list.sort(function (a, b) {
       var ap = a.currentTime > 0 && !a.paused ? 1 : 0;
@@ -86,6 +119,66 @@
     return list[0];
   }
 
+  /** Cross-origin frames on this page, best candidate first. */
+  function frameList() {
+    var out = [];
+    var seen = {};
+    var frames = [];
+    try { frames = document.querySelectorAll('iframe'); } catch (e) { return out; }
+
+    for (var i = 0; i < frames.length; i++) {
+      var el = frames[i];
+      var raw =
+        el.getAttribute('src') ||
+        el.getAttribute('data-src') ||
+        el.getAttribute('data-lazy-src') ||
+        el.getAttribute('data-original') ||
+        '';
+      if (!raw || /^(about:blank|javascript:|data:|blob:)/i.test(raw)) continue;
+
+      var url;
+      try { url = new URL(raw, location.href).href; } catch (e) { continue; }
+      if (!/^https?:/i.test(url) || seen[url]) continue;
+      if (FRAME_NOISE.test(url)) continue;
+
+      var w = el.clientWidth || 0;
+      var h = el.clientHeight || 0;
+      // A real player is big; a 1×1 or 300×50 frame is decoration.
+      if (w > 0 && h > 0 && (w < 220 || h < 120)) continue;
+
+      var score = 0;
+      if (FRAME_HINT.test(url)) score += 10;
+      if (w * h >= 200000) score += 4;
+      if (el.allowFullscreen || el.hasAttribute('allowfullscreen') || /fullscreen/i.test(el.getAttribute('allow') || '')) {
+        score += 3;
+      }
+
+      seen[url] = 1;
+      out.push({ url: url, score: score, w: w, h: h });
+    }
+
+    out.sort(function (a, b) {
+      return b.score - a.score || b.w * b.h - a.w * a.h;
+    });
+    return out.slice(0, 8);
+  }
+
+  /** Tell the native side where the player probably lives. */
+  function reportFrames() {
+    var list = frameList();
+    if (!list.length) return;
+
+    var sig = '';
+    for (var i = 0; i < list.length; i++) sig += list[i].url + '|';
+    var now = Date.now();
+    // Re-announce when the page changes its frames, and occasionally otherwise
+    // (players are often injected a few seconds after the page renders).
+    if (sig === S.frameSig && now - S.lastFrames < 5000) return;
+    S.frameSig = sig;
+    S.lastFrames = now;
+    send('frames', { frames: list, count: list.length });
+  }
+
   function scan() {
     var v = pick();
     if (v && v !== S.video) {
@@ -95,11 +188,13 @@
     } else if (v) {
       attach(v);
     }
+    if (!v) reportFrames();
   }
 
   window.__flicksync = {
     scan: scan,
     state: function () { send('state'); },
+    frames: frameList,
     apply: function (cmd) {
       scan();
       var v = S.video || pick();

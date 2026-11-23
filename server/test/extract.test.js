@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { resolveUrl, scrapeMedia, assertPublicHost } from '../src/extract.js';
+import { resolveUrl, scrapeMedia, scrapeFrames, assertPublicHost } from '../src/extract.js';
 
 test('direct media links are recognised without any network call', async () => {
   const source = await resolveUrl('https://cdn.example.com/movies/Big.Buck.Bunny.mp4?token=1');
@@ -62,4 +62,38 @@ test('scraping prefers og:video and normalises relative urls', () => {
 test('nonsense input fails politely', async () => {
   await assert.rejects(() => resolveUrl('   '), /url required/);
   await assert.rejects(() => resolveUrl('ftp://example.com/a.mp4'), /only http/);
+});
+
+// --- frames -----------------------------------------------------------------
+
+test('a watch page that frames its player is understood', () => {
+  const html = `
+    <html><head><title>Some Movie (2024)</title></head>
+    <body>
+      <div class="ad"><iframe src="https://doubleclick.net/adframe/9" width="300" height="50"></iframe></div>
+      <div class="trailer"><iframe src="https://www.youtube.com/embed/trailer" width="640" height="360"></iframe></div>
+      <div class="player">
+        <iframe src="https://vidsrc.to/embed/movie/1611767" allowfullscreen width="960" height="540"></iframe>
+      </div>
+      <iframe data-src="https://2embed.cc/embed/1611767"></iframe>
+    </body></html>`;
+
+  const frames = scrapeFrames(html, 'https://7movies.ws/movie/1611767/watch');
+  const urls = frames.map((f) => f.url);
+
+  assert.ok(urls.includes('https://vidsrc.to/embed/movie/1611767'));
+  assert.ok(urls.includes('https://2embed.cc/embed/1611767'), 'data-src frames count too');
+  assert.ok(!urls.some((u) => u.includes('doubleclick')), 'ad frames are dropped');
+  // The player-ish frame must outrank the plain trailer frame.
+  assert.ok(urls.indexOf('https://vidsrc.to/embed/movie/1611767') < urls.indexOf('https://www.youtube.com/embed/trailer'));
+});
+
+test('frames are de-duplicated and resolved against the page', () => {
+  const html = `
+    <iframe src="/embed/1"></iframe>
+    <iframe src="/embed/1"></iframe>
+    <iframe src="/embed/2"></iframe>`;
+  const frames = scrapeFrames(html, 'https://example.com/movie/9/watch');
+  assert.equal(frames.length, 2);
+  assert.ok(frames.every((f) => f.url.startsWith('https://example.com/embed/')));
 });

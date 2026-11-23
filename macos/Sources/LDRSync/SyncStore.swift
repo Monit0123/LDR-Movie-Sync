@@ -28,6 +28,11 @@ final class SyncStore: ObservableObject {
     @Published var partnerBuffering = false
     @Published var engine: EngineKind = .native
     @Published var webURL: URL?
+    /// The site that framed the player we are inside — used as the Referer,
+    /// because embed players refuse to run for anyone else.
+    var webEmbedder: String?
+    private var webHops = 0
+    private var webSeen: Set<String> = []
     @Published var webCommand: WebCommand?
     @Published var needsUnmute = false
     @Published var hasItem = false
@@ -175,6 +180,10 @@ final class SyncStore: ObservableObject {
         duration = incoming.duration ?? 0
         self.position = startAt
 
+        webHops = 0
+        webSeen.removeAll()
+        webEmbedder = nil
+
         if incoming.isDirect, let url = incoming.playableURL {
             engine = .native
             webURL = nil
@@ -205,6 +214,11 @@ final class SyncStore: ObservableObject {
             hasItem = false
             webPaused = paused
             webPosition = startAt
+            // The other side may hand us a framed player plus the site that
+            // framed it, so we end up on the very same player.
+            if let site = incoming.pageUrl, site != incoming.url {
+                webEmbedder = site
+            }
             webURL = EmbedShim.wrap(incoming.browserURL, relay: Defaults.server)
             isPlaying = !paused
             if !paused {
@@ -395,6 +409,13 @@ final class SyncStore: ObservableObject {
 
     func ingestWebEvent(_ payload: [String: Any]) {
         let type = payload["type"] as? String ?? ""
+
+        // A page that frames its player has no <video> of its own to report —
+        // step into the frame without disturbing the current drift state.
+        if type == "frames" {
+            followEmbeddedPlayer(payload)
+            return
+        }
         let pos = payload["position"] as? Double ?? 0
         let paused = payload["paused"] as? Bool ?? true
         let seconds = payload["duration"] as? Double ?? 0
@@ -430,6 +451,30 @@ final class SyncStore: ObservableObject {
         }
     }
 
+    /// Streaming sites almost never hold the <video> in the page you open: the
+    /// watch page frames a player on another host, and page script can never
+    /// reach into a cross-origin frame. Navigate the web view *into* the frame
+    /// so the player becomes the top document, where the bridge can drive it.
+    private func followEmbeddedPlayer(_ payload: [String: Any]) {
+        guard webHops < 3 else {
+            flash("No video found here — try another player on the page")
+            return
+        }
+        guard let frames = payload["frames"] as? [[String: Any]],
+              let current = webURL?.absoluteString else { return }
+
+        for frame in frames {
+            guard let raw = frame["url"] as? String, !raw.isEmpty,
+                  let next = URL(string: raw),
+                  webSeen.insert(raw).inserted else { continue }
+            webHops += 1
+            webEmbedder = current
+            flash("Following the embedded player…")
+            webURL = next
+            return
+        }
+    }
+
     /// Announce the page/video currently playing in the built-in browser.
     private func shareFromWeb(_ payload: [String: Any]) {
         guard client != nil else { return }
@@ -452,6 +497,10 @@ final class SyncStore: ObservableObject {
                 title: title,
                 duration: nil
             )
+        } else if let embedder = webEmbedder, embedder != pageURL {
+            // We stepped into a framed player: send the player *and* the site
+            // that framed it, so the other side opens the very same player.
+            candidate = Source(kind: "page", url: pageURL, pageUrl: embedder, title: title)
         } else {
             candidate = Source(kind: "page", pageUrl: pageURL, title: title)
         }

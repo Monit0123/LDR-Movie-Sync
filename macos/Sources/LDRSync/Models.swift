@@ -56,7 +56,9 @@ struct Source: Codable, Equatable {
             guard let id else { return nil }
             return URL(string: "https://player.vimeo.com/video/\(id)")
         default:
-            guard let raw = pageUrl ?? url else { return nil }
+            // A hopped-into player lives in `url`; `pageUrl` is the site that
+            // framed it (kept as the referrer). Plain pages keep them equal.
+            guard let raw = url ?? pageUrl else { return nil }
             return URL(string: raw)
         }
     }

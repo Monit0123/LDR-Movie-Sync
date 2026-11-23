@@ -70,7 +70,9 @@ data class Source(
         "youtube" -> id?.let { "https://www.youtube.com/embed/$it?playsinline=1&rel=0&autoplay=0" }
         "dailymotion" -> id?.let { "https://www.dailymotion.com/embed/video/$it" }
         "vimeo" -> id?.let { "https://player.vimeo.com/video/$it" }
-        else -> pageUrl ?: url
+        // A hopped-into player lives in `url`; `pageUrl` is the site that
+        // framed it (kept as the referrer). Plain pages keep them equal.
+        else -> url ?: pageUrl
     }
 
     fun toJson(): JSONObject = JSONObject().apply {

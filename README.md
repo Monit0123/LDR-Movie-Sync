@@ -136,11 +136,16 @@ Details that make it feel effortless:
 |---|---|---|
 | Direct media (`.mp4`, `.m3u8`, `.mpd`) | a CDN file, an HLS stream | **Native player on both devices** (ExoPlayer / AVPlayer). Best quality, fully local buffering. |
 | YouTube / Dailymotion / Vimeo | `dailymotion.com/video/x8…` | The **contained browser** opens the platform's own player as the top document on each device, and the injected bridge syncs its `<video>`. Both sides stream it themselves. |
-| Any other page with a video | a blog, an embed, a sketchy streaming site | Contained browser detects the `<video>` and mirrors the page + playhead. If the page exposes a direct stream URL, the other side plays it natively instead. |
+| Any other page with a video | a blog, an embed, a streaming site | Contained browser detects the `<video>` and mirrors the page + playhead. If the page exposes a direct stream URL, the other side plays it natively instead. |
+| A "watch" page that frames its player elsewhere | most streaming sites | The page itself has no `<video>` — it frames a player on another host. The browser **steps into the frame** (up to three levels), sending the original site as the `Referer` because players refuse to run for anyone else, and tells the other side the player URL *and* the site that framed it. |
 | A page the relay can scrape | most "watch" pages | `/api/extract` pulls the real media URL out, so both devices use the native player. |
 
 ### Honest limitations
 
+* **Sites that frame their player through several hosts** may still fail: some players check the embedding
+  domain against an allow-list, some want a handshake from the parent page, and DRM ones (Widevine) can
+  never work. When the browser finds no `<video>` it says so in the status line — press Back and pick a
+  different server from the site's own list.
 * **DRM services** (Netflix, Prime Video, Disney+, Spotify) will not work. Their players refuse
   to run outside their own apps and the streams are encrypted end-to-end. Nothing can fix that
   short of screen sharing.

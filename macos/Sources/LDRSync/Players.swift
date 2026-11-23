@@ -85,7 +85,10 @@ struct WebPlayerView: NSViewRepresentable {
     /// one the player starts without the extra hop.
     private func request(for url: URL) -> URLRequest {
         var request = URLRequest(url: url)
-        if EmbedShim.isEmbed(url) {
+        if let embedder = store.webEmbedder, !embedder.isEmpty {
+            // Embedded players only run for the site that framed them.
+            request.setValue(embedder, forHTTPHeaderField: "Referer")
+        } else if EmbedShim.isEmbed(url) {
             request.setValue(EmbedShim.referer(Defaults.server), forHTTPHeaderField: "Referer")
         }
         return request

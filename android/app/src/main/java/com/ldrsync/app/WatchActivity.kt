@@ -290,7 +290,7 @@ class WatchActivity : AppCompatActivity(), SyncSession.Observer {
                 applyingRemote = false
                 binding.idleText.text = "Playing in the browser tab"
                 binding.idleText.visibility = View.VISIBLE
-                openBrowser(url, share = false)
+                openBrowser(url, share = false, referer = src.pageUrl?.takeIf { it != url })
                 if (broadcast) SyncSession.client?.load(src, position, paused)
             } else {
                 toast("Open that one in the browser tab")
@@ -316,11 +316,12 @@ class WatchActivity : AppCompatActivity(), SyncSession.Observer {
         if (broadcast) SyncSession.client?.load(src, position, paused)
     }
 
-    private fun openBrowser(url: String, share: Boolean) {
+    private fun openBrowser(url: String, share: Boolean, referer: String? = null) {
         startActivity(
             Intent(this, BrowserActivity::class.java)
                 .putExtra(BrowserActivity.EXTRA_URL, url)
                 .putExtra(BrowserActivity.EXTRA_SHARE, share)
+                .putExtra(BrowserActivity.EXTRA_REFERER, referer)
                 .putExtra(BrowserActivity.EXTRA_POSITION, seconds())
                 .putExtra(BrowserActivity.EXTRA_PAUSED, !(player?.isPlaying ?: false)),
         )
