@@ -41,25 +41,32 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          # Everything the build prints also lands in build.log, inside the
+          # workspace, so a failure can be read back from the repository.
+          exec > >(tee "$GITHUB_WORKSPACE/build.log") 2>&1
+          set -x
+          SERVER_URL="${{ vars.FLICKSYNC_SERVER_URL || 'https://your-flicksync-server.example.com' }}"
           if [ -n "${KEYSTORE_BASE64:-}" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            gradle :app:assembleRelease --no-daemon 2>&1 | tee /tmp/gradle.log \
+            gradle :app:assembleRelease --no-daemon \
               -PRELEASE_STORE_FILE="$RUNNER_TEMP/release.jks" \
               -PRELEASE_STORE_PASSWORD="$KEYSTORE_PASSWORD" \
               -PRELEASE_KEY_ALIAS="$KEY_ALIAS" \
               -PRELEASE_KEY_PASSWORD="$KEY_PASSWORD" \
-              -Pflicksync.server.url="${{ vars.FLICKSYNC_SERVER_URL || 'https://your-flicksync-server.example.com' }}"
+              -Pflicksync.server.url="$SERVER_URL"
             cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/FlickSync.apk"
           else
-            gradle :app:assembleDebug --no-daemon 2>&1 | tee /tmp/gradle.log \
-              -Pflicksync.server.url="${{ vars.FLICKSYNC_SERVER_URL || 'https://your-flicksync-server.example.com' }}"
+            gradle :app:assembleDebug --no-daemon \
+              -Pflicksync.server.url="$SERVER_URL"
             cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/FlickSync.apk"
           fi
 
       - name: Publish the compiler error
         if: failure()
         run: |
-          tail -c 20000 /tmp/gradle.log > android-build.log 2>/dev/null || echo "no log captured" > android-build.log
+          cp build.log android-build.log 2>/dev/null || echo "no log captured" > android-build.log
+          tail -c 20000 android-build.log > android-build.tail || true
+          mv android-build.tail android-build.log
           git config user.name ci-bot
           git config user.email ci@flicksync.local
           git add android-build.log
