@@ -13,6 +13,9 @@ on:
       - "shared/**"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -40,7 +43,7 @@ jobs:
           set -euo pipefail
           if [ -n "${KEYSTORE_BASE64:-}" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            gradle :app:assembleRelease --no-daemon \
+            gradle :app:assembleRelease --no-daemon 2>&1 | tee /tmp/gradle.log \
               -PRELEASE_STORE_FILE="$RUNNER_TEMP/release.jks" \
               -PRELEASE_STORE_PASSWORD="$KEYSTORE_PASSWORD" \
               -PRELEASE_KEY_ALIAS="$KEY_ALIAS" \
@@ -48,10 +51,20 @@ jobs:
               -Pflicksync.server.url="${{ vars.FLICKSYNC_SERVER_URL || 'https://your-flicksync-server.example.com' }}"
             cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/FlickSync.apk"
           else
-            gradle :app:assembleDebug --no-daemon \
+            gradle :app:assembleDebug --no-daemon 2>&1 | tee /tmp/gradle.log \
               -Pflicksync.server.url="${{ vars.FLICKSYNC_SERVER_URL || 'https://your-flicksync-server.example.com' }}"
             cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/FlickSync.apk"
           fi
+
+      - name: Publish the compiler error
+        if: failure()
+        run: |
+          tail -c 20000 /tmp/gradle.log > android-build.log 2>/dev/null || echo "no log captured" > android-build.log
+          git config user.name ci-bot
+          git config user.email ci@flicksync.local
+          git add android-build.log
+          git commit -m "ci: android build log [skip ci]" || true
+          git push || true
 
       - uses: actions/upload-artifact@v4
         with:
