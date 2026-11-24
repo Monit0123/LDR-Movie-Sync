@@ -134,7 +134,7 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
                 if (!target.startsWith("http://") && !target.startsWith("https://")) return true
                 // Only a real tap may jump to the native player. Ad redirects
                 // land on .mp4s all the time and must not close the browser.
-                if (isDirectMedia(target) && request?.hasGesture == true) {
+                if (isDirectMedia(target) && request?.hasGesture() == true) {
                     handOffToPlayer(target)
                     return true
                 }
