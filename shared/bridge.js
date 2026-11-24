@@ -140,25 +140,34 @@
       try { url = new URL(raw, location.href).href; } catch (e) { continue; }
       if (!/^https?:/i.test(url) || seen[url]) continue;
       if (FRAME_NOISE.test(url)) continue;
+      // A media file must never be treated as a page to navigate into.
+      if (/\.(mp4|m4v|webm|mkv|mov|m3u8|mpd)(\?|#|$)/i.test(url)) continue;
 
       var w = el.clientWidth || 0;
       var h = el.clientHeight || 0;
-      // A real player is big; a 1×1 or 300×50 frame is decoration.
       if (w > 0 && h > 0 && (w < 220 || h < 120)) continue;
+
+      // How much of the window the frame covers. A real player fills it; a
+      // 300×250 ad slot does not — and hopping into an ad is worse than doing
+      // nothing at all.
+      var viewport =
+        (window.innerWidth || (document.documentElement && document.documentElement.clientWidth) || 0) *
+        (window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || 0);
+      var ratio = viewport > 0 && w > 0 && h > 0 ? (w * h) / viewport : 0;
 
       var score = 0;
       if (FRAME_HINT.test(url)) score += 10;
-      if (w * h >= 200000) score += 4;
+      if (ratio >= 0.35) score += 6;
       if (el.allowFullscreen || el.hasAttribute('allowfullscreen') || /fullscreen/i.test(el.getAttribute('allow') || '')) {
         score += 3;
       }
 
       seen[url] = 1;
-      out.push({ url: url, score: score, w: w, h: h });
+      out.push({ url: url, score: score, w: w, h: h, ratio: Math.round(ratio * 100) / 100 });
     }
 
     out.sort(function (a, b) {
-      return b.score - a.score || b.w * b.h - a.w * a.h;
+      return b.score - a.score || b.ratio - a.ratio || b.w * b.h - a.w * a.h;
     });
     return out.slice(0, 8);
   }

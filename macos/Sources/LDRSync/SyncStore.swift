@@ -467,12 +467,25 @@ final class SyncStore: ObservableObject {
             guard let raw = frame["url"] as? String, !raw.isEmpty,
                   let next = URL(string: raw),
                   webSeen.insert(raw).inserted else { continue }
+            // Only ever step into a frame that fills the window: hopping into a
+            // 300×250 ad slot hijacks the page.
+            guard isDominantFramePrinciple(frame, total: frames.count) else { continue }
             webHops += 1
             webEmbedder = current
             flash("Following the embedded player…")
             webURL = next
             return
         }
+    }
+
+    /// A frame worth navigating into: it covers most of the window, or its
+    /// size is unknown but it is the only frame on the page.
+    private func isDominantFramePrinciple(_ frame: [String: Any], total: Int) -> Bool {
+        let ratio = frame["ratio"] as? Double ?? 0
+        let w = frame["w"] as? Int ?? 0
+        let h = frame["h"] as? Int ?? 0
+        if w <= 0 || h <= 0 { return total == 1 }
+        return ratio >= 0.30
     }
 
     /// Announce the page/video currently playing in the built-in browser.

@@ -132,7 +132,9 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val target = request?.url?.toString() ?: return false
                 if (!target.startsWith("http://") && !target.startsWith("https://")) return true
-                if (isDirectMedia(target)) {
+                // Only a real tap may jump to the native player. Ad redirects
+                // land on .mp4s all the time and must not close the browser.
+                if (isDirectMedia(target) && request?.hasGesture == true) {
                     handOffToPlayer(target)
                     return true
                 }
@@ -220,8 +222,12 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
         val from = loadedTarget ?: binding.webView.url ?: return
 
         for (i in 0 until frames.length()) {
-            val url = frames.optJSONObject(i)?.optString("url")?.takeIf { it.isNotBlank() } ?: continue
+            val frame = frames.optJSONObject(i) ?: continue
+            val url = frame.optString("url").takeIf { it.isNotBlank() } ?: continue
             if (!hopSeen.add(url)) continue
+            // Only ever step into a frame that fills the window. A 300×250 ad
+            // slot is not a player, and navigating into one hijacks the page.
+            if (!isDominantFrame(frame, frames.length())) continue
             hopCount++
             frameParent = from
             binding.syncLabel.text = "Following the embedded player…"
@@ -232,6 +238,18 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     }
 
     private fun relayBase(): String = SyncSession.serverUrl.ifBlank { SyncSession.savedServer(this) }
+
+    /**
+     * A frame worth navigating into: it covers most of the window, or its size
+     * is unknown but it is the only frame on the page.
+     */
+    private fun isDominantFrame(frame: JSONObject, total: Int): Boolean {
+        val ratio = frame.optDouble("ratio", 0.0)
+        val w = frame.optInt("w", 0)
+        val h = frame.optInt("h", 0)
+        if (w <= 0 || h <= 0) return total == 1
+        return ratio >= 0.30
+    }
 
     private fun inject() {
         binding.webView.evaluateJavascript(Bridge.script(this), null)
