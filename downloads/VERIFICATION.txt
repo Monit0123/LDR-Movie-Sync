@@ -1,8 +1,8 @@
 FlickSync downloads/FlickSync-Mac.dmg
 checked on: macOS 26.7.2 (arm64)
-checked at: 2026-11-23T08:54:59Z
-sha256: 502162a88f94216a67f6c83d39d12269e74f60334a33131dee62e4f61c2c5aca
-size: 1296169 bytes
+checked at: 2026-11-25T11:18:15Z
+sha256: 70ec0c2c87e19f75feb9d26d99f0aefa58edd51abf1a750653fc87a3c56b0e27
+size: 1054971 bytes
 
 --- dmg ---
 Class Name: CUDIFDiskImage
@@ -22,10 +22,10 @@ Format: UDZO
 --- mount ---
 attach: /dev/disk8s1        	41504653-0000-11AA-AA11-0030654	/private/tmp/flicksync_mnt
 total 0
-drwxr-xr-x  4 runner  staff  128 Nov 23 07:46 .
-drwxrwxrwt  3 root    wheel   96 Nov 23 08:55 ..
-lrwxr-xr-x  1 runner  staff   13 Nov 23 07:46 Applications -> /Applications
-drwxr-xr-x  3 runner  staff   96 Nov 23 07:46 FlickSync.app
+drwxr-xr-x  4 runner  staff  128 Nov 25 11:08 .
+drwxrwxrwt  3 root    wheel   96 Nov 25 11:18 ..
+lrwxr-xr-x  1 runner  staff   13 Nov 25 11:08 Applications -> /Applications
+drwxr-xr-x  3 runner  staff   96 Nov 25 11:08 FlickSync.app
 
 --- app bundle ---
 FlickSync.app
@@ -42,7 +42,7 @@ FlickSync.app/Contents/PkgInfo
 
 --- sizes ---
 3.1M	/tmp/flicksync_mnt/FlickSync.app
--rwxr-xr-x  1 runner  staff  2868720 Nov 23 07:46 /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync
+-rwxr-xr-x  1 runner  staff  2905776 Nov 25 11:08 /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync
 
 --- architectures ---
 Architectures in the fat file: /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync are: x86_64 arm64 
@@ -51,7 +51,7 @@ Architectures in the fat file: /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/F
   Executable=/private/tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/FlickSync
   Identifier=com.ldrsync.flicksync
   Format=app bundle with Mach-O universal (x86_64 arm64)
-  CodeDirectory v=20400 size=2926 flags=0x2(adhoc) hashes=85+3 location=embedded
+  CodeDirectory v=20400 size=2990 flags=0x2(adhoc) hashes=87+3 location=embedded
   Signature=adhoc
   Info.plist entries=16
   TeamIdentifier=not set
@@ -67,14 +67,14 @@ Architectures in the fat file: /tmp/flicksync_mnt/FlickSync.app/Contents/MacOS/F
   CFBundleIconFile = AppIcon
 
 --- bundled resources ---
-  total 624
-  -rw-r--r--  1 runner  staff  308617 Nov 23 07:46 AppIcon.icns
-  -rw-r--r--  1 runner  staff    4696 Nov 23 07:46 bridge.js
+  total 632
+  -rw-r--r--  1 runner  staff  308617 Nov 25 11:08 AppIcon.icns
+  -rw-r--r--  1 runner  staff   10496 Nov 25 11:08 bridge.js
   bridge.js exposes __flicksync: 5
 
 --- launch smoke test (10s) ---
-  process alive after 8s: yes (pid 2074)
+  process alive after 8s: yes (pid 1189)
   stderr/stdout:
-/Users/runner/work/_temp/0d565fca-6a0a-4304-8429-a3d92b594174.sh: line 58:  2074 Terminated: 15          "$APP/Contents/MacOS/FlickSync" > /tmp/flicksync_run.log 2>&1
+/Users/runner/work/_temp/f5e676c0-57ac-424d-badc-187d7c693aeb.sh: line 58:  1189 Terminated: 15          "$APP/Contents/MacOS/FlickSync" > /tmp/flicksync_run.log 2>&1
 
 --- end ---
