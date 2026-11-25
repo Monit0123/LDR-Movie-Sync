@@ -56,7 +56,9 @@ struct Source: Codable, Equatable {
             guard let id else { return nil }
             return URL(string: "https://player.vimeo.com/video/\(id)")
         default:
-            guard let raw = pageUrl ?? url else { return nil }
+            // A hopped-into player lives in `url`; `pageUrl` is the site that
+            // framed it (kept as the referrer). Plain pages keep them equal.
+            guard let raw = url ?? pageUrl else { return nil }
             return URL(string: raw)
         }
     }
@@ -177,6 +179,60 @@ func clock(_ seconds: Double) -> String {
     let m = (total % 3600) / 60
     let s = total % 60
     return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
+}
+
+/// YouTube (and friends) refuse to start a player whose request carries no HTTP
+/// Referer — the screen shows "Video player configuration error, error 153".
+/// A WKWebView that navigates straight to `/embed/<id>` sends none, so the
+/// player never starts even though the video is embeddable.
+///
+/// Fix: bounce through the relay's `/embed?u=` shim, a real page on our own
+/// origin, so the navigation to the player carries a referrer. When no relay is
+/// known, attach a Referer header instead.
+enum EmbedShim {
+    static let hosts = [
+        "youtube.com",
+        "youtube-nocookie.com",
+        "youtu.be",
+        "dailymotion.com",
+        "vimeo.com",
+        "twitch.tv",
+    ]
+    static let fallbackReferer = "https://www.youtube.com/"
+
+    static func isEmbed(_ url: URL?) -> Bool {
+        guard let host = url?.host?.lowercased() else { return false }
+        return hosts.contains { host == $0 || host.hasSuffix("." + $0) }
+    }
+
+    static func wrap(_ url: URL?, relay: String) -> URL? {
+        guard let url else { return nil }
+        guard isEmbed(url), !url.absoluteString.contains("/embed?u=") else { return url }
+        guard let base = relayBase(relay) else { return url }
+        var components = URLComponents(string: base + "/embed")
+        components?.queryItems = [URLQueryItem(name: "u", value: url.absoluteString)]
+        return components?.url ?? url
+    }
+
+    static func unwrap(_ raw: String?, relay: String) -> String? {
+        guard let raw, let base = relayBase(relay), raw.hasPrefix(base + "/embed?") else { return nil }
+        guard let components = URLComponents(string: raw),
+              let inner = components.queryItems?.first(where: { $0.name == "u" })?.value,
+              !inner.isEmpty else { return nil }
+        return inner
+    }
+
+    static func referer(_ relay: String) -> String {
+        guard let base = relayBase(relay), base.hasPrefix("https://") else { return fallbackReferer }
+        return base + "/"
+    }
+
+    static func relayBase(_ relay: String) -> String? {
+        var base = relay.trimmingCharacters(in: .whitespacesAndNewlines)
+        while base.hasSuffix("/") { base.removeLast() }
+        guard base.hasPrefix("http://") || base.hasPrefix("https://") else { return nil }
+        return base
+    }
 }
 
 enum Defaults {

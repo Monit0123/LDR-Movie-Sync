@@ -40,12 +40,31 @@ export async function resolveUrl(input) {
   const title = pickMeta(page.html, ['og:title', 'twitter:title', 'title']) || parsed.hostname;
 
   if (candidates.length === 0) {
+    // Nothing in the page itself. Streaming sites frame the player on another
+    // host — follow the most player-like frame once and look inside it.
+    const frames = scrapeFrames(page.html, page.finalUrl);
+    const inner = await followFrame(frames, page.finalUrl);
+    if (inner) {
+      const innerCandidates = scrapeMedia(inner.html, inner.finalUrl);
+      if (innerCandidates.length > 0) {
+        const best = innerCandidates[0];
+        return {
+          kind: /\.m3u8$/i.test(best.url) ? 'hls' : 'file',
+          url: best.url,
+          pageUrl: page.finalUrl,
+          title: innerCandidates[0].title || title,
+          note: 'Found inside the embedded player the page frames.',
+        };
+      }
+    }
+
     return {
       kind: 'page',
       url: parsed.toString(),
       pageUrl: parsed.toString(),
       title,
       candidates: [],
+      frames: frames.slice(0, 6),
       note: 'No direct media found. Native apps will open this page in the built-in browser and sync whatever <video> it finds.',
     };
   }
@@ -128,6 +147,44 @@ async function enrich(source) {
   return source;
 }
 
+const FRAME_HINT = /(embed|player|watch|video|movie|stream|play|media|vsrc|vidlink|2embed)/i;
+const FRAME_NOISE =
+  /(doubleclick|googlesyndication|adservice|adsystem|adnxs|taboola|outbrain|popunder|banner|promo|analytics|recaptcha|facebook\.com)/i;
+
+/**
+ * Cross-origin players a "watch" page frames. Streaming sites almost never put
+ * the media in their own HTML: the page frames a different host, and that host
+ * holds the stream. Best candidate first.
+ */
+export function scrapeFrames(html, baseUrl) {
+  const found = new Map();
+  const add = (raw, score) => {
+    if (!raw) return;
+    let url;
+    try { url = new URL(decodeEntities(raw.trim()), baseUrl).toString(); } catch { return; }
+    if (!/^https?:/i.test(url)) return;
+    if (FRAME_NOISE.test(url)) return;
+    const previous = found.get(url);
+    if (previous !== undefined && previous >= score) return;
+    found.set(url, score);
+  };
+
+  for (const m of html.matchAll(/<iframe\b[^>]*>/gi)) {
+    const tag = m[0];
+    const src = tag.match(/\b(?:src|data-src|data-lazy-src|data-original)=["']([^"']+)["']/i)?.[1];
+    if (!src) continue;
+    let score = FRAME_HINT.test(src) ? 10 : 4;
+    if (/allowfullscreen/i.test(tag)) score += 3;
+    add(src, score);
+  }
+  // Some pages build their frame in a script string.
+  for (const m of html.matchAll(/["'](https?:\/\/[^"'\\\s]+?\/(?:embed|player)\/[^"'\\\s]*)["']/gi)) {
+    add(m[1], 6);
+  }
+
+  return [...found.entries()].sort((a, b) => b[1] - a[1]).map(([url]) => ({ url }));
+}
+
 /** Pull every plausible media URL out of an HTML page, best first. */
 export function scrapeMedia(html, baseUrl) {
   const found = new Map();
@@ -164,6 +221,24 @@ export function scrapeMedia(html, baseUrl) {
     .map(({ url, title }) => ({ url, title }));
 }
 
+/**
+ * Fetch the best framed player. Players usually refuse to serve a page that is
+ * not embedded by its own site, so we send the parent as the referrer.
+ */
+async function followFrame(frames, parentUrl) {
+  for (const frame of (frames || []).slice(0, 2)) {
+    try {
+      const host = new URL(frame.url).hostname;
+      assertPublicHost(host);
+      const page = await fetchText(frame.url, { referer: parentUrl });
+      if (page.html && page.html.length > 512) return page;
+    } catch {
+      // Site blocked us, timed out, or the frame was junk — try the next one.
+    }
+  }
+  return null;
+}
+
 function pickMeta(html, names) {
   for (const name of names) {
     const patterns = [
@@ -182,14 +257,20 @@ function pickMeta(html, names) {
   return null;
 }
 
-async function fetchText(url) {
+async function fetchText(url, options = {}) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12_000);
+  const timer = setTimeout(() => controller.abort(), options.timeout || 12_000);
   try {
+    const headers = {
+      'user-agent': UA,
+      accept: 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
+      'accept-language': 'en-US,en;q=0.9',
+    };
+    if (options.referer) headers.referer = options.referer;
     const res = await fetch(url, {
       signal: controller.signal,
       redirect: 'follow',
-      headers: { 'user-agent': UA, accept: 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8', 'accept-language': 'en-US,en;q=0.9' },
+      headers,
     });
     if (!res.ok) throw new Error(`site answered ${res.status}`);
     const contentType = res.headers.get('content-type') || '';

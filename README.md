@@ -70,7 +70,7 @@ Open the URL — that's the whole app. The same origin serves the web client, th
 ## 2. Install the apps
 
 Ready-built binaries are committed in [`downloads/`](downloads/) **and** attached to the
-[**v1.0.2 release**](https://github.com/Monit0123/LDR-Movie-Sync/releases/latest):
+[**v1.0.5 release**](https://github.com/Monit0123/LDR-Movie-Sync/releases/latest):
 
 | File | Install |
 |---|---|
@@ -81,7 +81,7 @@ Ready-built binaries are committed in [`downloads/`](downloads/) **and** attache
 [`downloads/VERIFICATION.txt`](downloads/VERIFICATION.txt) is a mount-and-launch report
 produced on a real Mac (universal binary, ad-hoc signature verified, app starts cleanly).
 
-Both are built by CI on every push; tag `v1.0.3` (or any `v*`) to publish a fresh pair.
+Both are built by CI on every push; tag `v1.0.6` (or any `v*`) to publish a fresh pair.
 To ship a *signed* store-ready APK, add `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`
 and `KEY_PASSWORD` as repository secrets — the workflow switches to `assembleRelease` on its own.
 
@@ -136,11 +136,16 @@ Details that make it feel effortless:
 |---|---|---|
 | Direct media (`.mp4`, `.m3u8`, `.mpd`) | a CDN file, an HLS stream | **Native player on both devices** (ExoPlayer / AVPlayer). Best quality, fully local buffering. |
 | YouTube / Dailymotion / Vimeo | `dailymotion.com/video/x8…` | The **contained browser** opens the platform's own player as the top document on each device, and the injected bridge syncs its `<video>`. Both sides stream it themselves. |
-| Any other page with a video | a blog, an embed, a sketchy streaming site | Contained browser detects the `<video>` and mirrors the page + playhead. If the page exposes a direct stream URL, the other side plays it natively instead. |
+| Any other page with a video | a blog, an embed, a streaming site | Contained browser detects the `<video>` and mirrors the page + playhead. If the page exposes a direct stream URL, the other side plays it natively instead. |
+| A "watch" page that frames its player elsewhere | most streaming sites | The page itself has no `<video>` — it frames a player on another host. The browser **steps into the frame** (up to three levels), sending the original site as the `Referer` because players refuse to run for anyone else, and tells the other side the player URL *and* the site that framed it. |
 | A page the relay can scrape | most "watch" pages | `/api/extract` pulls the real media URL out, so both devices use the native player. |
 
 ### Honest limitations
 
+* **Sites that frame their player through several hosts** may still fail: some players check the embedding
+  domain against an allow-list, some want a handshake from the parent page, and DRM ones (Widevine) can
+  never work. When the browser finds no `<video>` it says so in the status line — press Back and pick a
+  different server from the site's own list.
 * **DRM services** (Netflix, Prime Video, Disney+, Spotify) will not work. Their players refuse
   to run outside their own apps and the streams are encrypted end-to-end. Nothing can fix that
   short of screen sharing.
@@ -150,6 +155,10 @@ Details that make it feel effortless:
   show a *Tap for sound* pill; after one tap it's unlocked for the session.
 * **Twitch** is best-effort (the embed requires a matching parent domain); direct `.m3u8` is
   better when available.
+* **"Video player configuration error, error 153"** is YouTube refusing to start a player whose
+  request carried no `Referer`. The apps bounce the navigation through the relay
+  (`/embed?u=…`, a real page on your own origin) so the player always gets one. If you still see
+  153, that app is older than v1.0.5.
 
 ---
 

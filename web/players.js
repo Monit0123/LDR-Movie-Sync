@@ -158,6 +158,18 @@ export class DirectAdapter extends BaseAdapter {
  * YouTube
  * ------------------------------------------------------------------ */
 
+const YT_ERROR_MESSAGES = {
+  2: 'That YouTube link is not a video the player understands.',
+  5: 'YouTube will not play that video in an embedded player.',
+  100: 'That video is private or has been removed.',
+  101: 'The owner does not allow this video to be embedded on other sites.',
+  150: 'The owner does not allow this video to be embedded on other sites.',
+  153: 'YouTube needs a page address before it will play. Open FlickSync from your server URL (https://…), not from a local file.',
+};
+
+const youtubeErrorMessage = (code) =>
+  YT_ERROR_MESSAGES[code] || `YouTube refused to play this video (error ${code ?? '?'}).`;
+
 export class YouTubeAdapter extends BaseAdapter {
   constructor(container, source) {
     super(source);
@@ -189,7 +201,9 @@ export class YouTubeAdapter extends BaseAdapter {
           modestbranding: 1,
           playsinline: 1,
           enablejsapi: 1,
-          origin: location.origin,
+          // `file://` pages have the origin "null", which YouTube rejects as a
+          // player configuration error. Omit the parameter in that case.
+          ...(/^https?:$/.test(location.protocol) ? { origin: location.origin } : {}),
         },
         events: {
           onReady: () => {
@@ -198,7 +212,7 @@ export class YouTubeAdapter extends BaseAdapter {
             done();
           },
           onStateChange: (event) => this._onState(event.data),
-          onError: () => this.emit('error', { message: 'YouTube refused to play this video here.' }),
+          onError: (event) => this.emit('error', { message: youtubeErrorMessage(event?.data) }),
         },
       });
     });

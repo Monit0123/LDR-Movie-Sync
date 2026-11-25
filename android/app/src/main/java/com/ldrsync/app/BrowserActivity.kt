@@ -8,6 +8,7 @@ import android.os.SystemClock
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -30,6 +31,13 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     private var lastEvent: JSONObject? = null
     private var lastRemote: JSONObject? = null
     private var sharedKey: String? = null
+    /** What we last asked the WebView to load (before any redirect). */
+    private var loadedTarget: String? = null
+    /** Frames we have stepped into, so a page cannot bounce us in circles. */
+    private val hopSeen = mutableSetOf<String>()
+    private var hopCount = 0
+    /** The site that framed the player we are now inside. */
+    private var frameParent: String? = null
     private var suppressShareUntil = 0L
     private var pendingPosition: Double? = null
     private var pendingPlaying = false
@@ -43,10 +51,11 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
         wireUi()
 
         val url = intent.getStringExtra(EXTRA_URL)
+        val referer = intent.getStringExtra(EXTRA_REFERER)
         pendingPosition = intent.getDoubleExtra(EXTRA_POSITION, 0.0)
         pendingPlaying = !intent.getBooleanExtra(EXTRA_PAUSED, true)
         if (!url.isNullOrBlank()) {
-            load(url)
+            load(url, referer)
         } else {
             val start = SyncSession.currentSource?.pageUrl ?: "https://www.dailymotion.com"
             load(start)
@@ -104,10 +113,28 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
                 }
             }
 
+            /**
+             * A relay older than this build has no /embed shim, so the bounce
+             * page 404s. Go straight to the player instead of showing an error.
+             */
+            override fun onReceivedHttpError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                errorResponse: WebResourceResponse?,
+            ) {
+                val url = request?.url?.toString() ?: return
+                val status = errorResponse?.statusCode ?: 0
+                if (status !in 400..499) return
+                val original = Embeds.unwrap(url, relayBase()) ?: return
+                load(original, Embeds.referer(relayBase()))
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val target = request?.url?.toString() ?: return false
                 if (!target.startsWith("http://") && !target.startsWith("https://")) return true
-                if (isDirectMedia(target)) {
+                // Only a real tap may jump to the native player. Ad redirects
+                // land on .mp4s all the time and must not close the browser.
+                if (isDirectMedia(target) && request?.hasGesture() == true) {
                     handOffToPlayer(target)
                     return true
                 }
@@ -146,6 +173,9 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     private fun go() {
         val raw = binding.addressInput.text?.toString()?.trim().orEmpty()
         if (raw.isEmpty()) return
+        hopSeen.clear()
+        hopCount = 0
+        frameParent = null
         val url = when {
             raw.startsWith("http") -> raw
             raw.contains(".") && !raw.contains(" ") -> "https://$raw"
@@ -154,10 +184,89 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
         if (isDirectMedia(url)) handOffToPlayer(url) else load(url)
     }
 
-    private fun load(url: String) {
-        binding.webView.loadUrl(url)
+    private fun load(url: String, referer: String? = null) {
+        loadedTarget = url
+        val relay = relayBase()
+        val target = Embeds.wrap(url, relay)
+        val headers = when {
+            // Embed players routinely refuse to run unless the site that framed
+            // them is the referrer — so keep pretending to be that site.
+            referer != null -> mapOf("Referer" to referer)
+            // No relay to bounce through: give the player a referrer directly.
+            target == url && Embeds.isEmbedUrl(url) -> mapOf("Referer" to Embeds.referer(relay))
+            else -> emptyMap()
+        }
+        if (headers.isEmpty()) {
+            binding.webView.loadUrl(target)
+        } else {
+            binding.webView.loadUrl(target, headers)
+        }
         binding.webView.requestFocus()
         renderStatus()
+    }
+
+    /**
+     * Step into the framed player.
+     *
+     * Streaming sites almost never hold the <video> in the page you open: the
+     * watch page frames a player on a different host, and a page script can
+     * never reach into a cross-origin frame. Navigating the WebView *into* the
+     * frame makes the player the top document, where the bridge can drive it.
+     */
+    private fun followEmbeddedPlayer(event: JSONObject) {
+        if (hopCount >= MAX_HOPS) {
+            binding.syncLabel.text = "No video found here — press play in the page, or open another player"
+            return
+        }
+        val frames = event.optJSONArray("frames") ?: return
+        val from = loadedTarget ?: binding.webView.url ?: return
+
+        for (i in 0 until frames.length()) {
+            val frame = frames.optJSONObject(i) ?: continue
+            val url = frame.optString("url").takeIf { it.isNotBlank() } ?: continue
+            if (!hopSeen.add(url)) continue
+            // Only ever step into a frame that fills the window. A 300×250 ad
+            // slot is not a player, and navigating into one hijacks the page.
+            if (!isDominantFrame(frame, frames.length())) continue
+            hopCount++
+            frameParent = from
+            binding.syncLabel.text = "Following the embedded player…"
+            binding.addressInput.setText(url)
+            load(url, referer = from)
+            return
+        }
+    }
+
+    /**
+     * Say what the page contains. "It just opens a web page and nothing else"
+     * is a miserable experience; the line should say which of the three states
+     * we are in — watching, framed, or still waiting for a player.
+     */
+    private fun showProbe(event: JSONObject) {
+        if (SystemClock.elapsedRealtime() < suppressShareUntil) return
+        if (event.optInt("videos", 0) > 0) return // the sharing status is better
+
+        val frames = event.optInt("frames", 0)
+        val text = if (frames > 0) {
+            if (frames == 1) "No video in the page — 1 embedded player" else "No video in the page — $frames embedded players"
+        } else {
+            "No video yet — press play in the page"
+        }
+        if (binding.syncLabel.text.toString() != text) binding.syncLabel.text = text
+    }
+
+    private fun relayBase(): String = SyncSession.serverUrl.ifBlank { SyncSession.savedServer(this) }
+
+    /**
+     * A frame worth navigating into: it covers most of the window, or its size
+     * is unknown but it is the only frame on the page.
+     */
+    private fun isDominantFrame(frame: JSONObject, total: Int): Boolean {
+        val ratio = frame.optDouble("ratio", 0.0)
+        val w = frame.optInt("w", 0)
+        val h = frame.optInt("h", 0)
+        if (w <= 0 || h <= 0) return total == 1
+        return ratio >= 0.30
     }
 
     private fun inject() {
@@ -187,6 +296,19 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     // -------------------------------------------------------------- page events
 
     private fun onPageEvent(event: JSONObject) {
+        // These two describe the page rather than a video; they must not
+        // disturb the pending-seek state or the last reported position.
+        when (event.optString("type")) {
+            "frames" -> {
+                followEmbeddedPlayer(event)
+                return
+            }
+            "probe" -> {
+                showProbe(event)
+                return
+            }
+        }
+
         lastEvent = event
         renderStatus()
 
@@ -232,7 +354,9 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     private fun shareCurrent(force: Boolean) {
         val event = lastEvent
         val client = SyncSession.client ?: return
-        val pageUrl = event?.optString("url")?.ifBlank { null } ?: binding.webView.url ?: return
+        val reported = event?.optString("url")?.ifBlank { null } ?: binding.webView.url ?: return
+        // Never share the relay's bounce page — share the player behind it.
+        val pageUrl = Embeds.unwrap(reported, relayBase()) ?: reported
         if (SystemClock.elapsedRealtime() < suppressShareUntil && !force) return
 
         val rawSrc = event?.optString("src").orEmpty()
@@ -243,13 +367,18 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
 
         val title = event?.optString("title")?.ifBlank { null }
 
+        val embedder = frameParent?.takeIf { it.isNotBlank() && it != pageUrl }
         val source = if (usableSrc) {
             Source(
                 kind = if (rawSrc.contains(".m3u8")) "hls" else "file",
                 url = rawSrc,
-                pageUrl = pageUrl,
+                pageUrl = embedder ?: pageUrl,
                 title = title,
             )
+        } else if (embedder != null) {
+            // We stepped into a framed player: send the player *and* the site
+            // that framed it, so the other side opens the very same player.
+            Source(kind = "page", url = pageUrl, pageUrl = embedder, title = title)
         } else {
             Source(kind = "page", pageUrl = pageUrl, title = title)
         }
@@ -313,9 +442,12 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
                 }
 
                 val target = incoming.browserUrl() ?: incoming.pageUrl ?: return
+                // The other side may have handed us a framed player plus the
+                // site that framed it; players check exactly that.
+                val embedder = incoming.pageUrl?.takeIf { it.isNotBlank() && it != target }
                 pendingPosition = position
                 pendingPlaying = !paused
-                if (binding.webView.url != target) load(target) else applyToPage(if (paused) "pause" else "play", position)
+                if (loadedTarget != target) load(target, embedder) else applyToPage(if (paused) "pause" else "play", position)
             }
 
             "play", "pause", "seek", "rate" -> {
@@ -340,7 +472,10 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     }
 
     companion object {
+        /** How many framed players we will step into before giving up. */
+        private const val MAX_HOPS = 3
         const val EXTRA_URL = "url"
+        const val EXTRA_REFERER = "referer"
         const val EXTRA_SHARE = "share"
         const val EXTRA_POSITION = "position"
         const val EXTRA_PAUSED = "paused"

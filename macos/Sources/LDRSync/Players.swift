@@ -75,9 +75,23 @@ struct WebPlayerView: NSViewRepresentable {
         context.coordinator.webView = web
         if let url = store.webURL {
             context.coordinator.loadedURL = url.absoluteString
-            web.load(URLRequest(url: url))
+            web.load(request(for: url))
         }
         return web
+    }
+
+    /// Belt and braces for navigations that do not go through the relay shim:
+    /// WebKit drops a URLRequest's Referer on some paths, but when it honours
+    /// one the player starts without the extra hop.
+    private func request(for url: URL) -> URLRequest {
+        var request = URLRequest(url: url)
+        if let embedder = store.webEmbedder, !embedder.isEmpty {
+            // Embedded players only run for the site that framed them.
+            request.setValue(embedder, forHTTPHeaderField: "Referer")
+        } else if EmbedShim.isEmbed(url) {
+            request.setValue(EmbedShim.referer(Defaults.server), forHTTPHeaderField: "Referer")
+        }
+        return request
     }
 
     func updateNSView(_ web: WKWebView, context: Context) {
@@ -85,7 +99,7 @@ struct WebPlayerView: NSViewRepresentable {
 
         if let url = store.webURL, coordinator.loadedURL != url.absoluteString {
             coordinator.loadedURL = url.absoluteString
-            web.load(URLRequest(url: url))
+            web.load(request(for: url))
         }
 
         if let command = store.webCommand, coordinator.lastCommand != command.id {
