@@ -26,17 +26,23 @@ function frame(attrs, box) {
   };
 }
 
-function run(frames, viewport = [1280, 720]) {
+function run(frames, viewport = [1280, 720], extra = {}) {
+  const events = [];
+  const nodes = extra.nodes || [];
   const window = {
     innerWidth: viewport[0],
     innerHeight: viewport[1],
     addEventListener() {},
-    FlickSyncNative: { onEvent() {} },
+    FlickSyncNative: { onEvent: (payload) => events.push(JSON.parse(payload)) },
   };
   const document = {
     title: 'Some site',
     documentElement: { clientWidth: viewport[0], clientHeight: viewport[1] },
-    querySelectorAll: (selector) => (selector === 'iframe' ? frames : []),
+    querySelectorAll: (selector) => {
+      if (selector === 'iframe') return frames;
+      if (selector === '*') return nodes;
+      return [];
+    },
     addEventListener() {},
   };
 
@@ -54,11 +60,11 @@ function run(frames, viewport = [1280, 720]) {
   });
 
   vm.runInContext(source, context);
-  return window.__flicksync;
+  return { api: window.__flicksync, events };
 }
 
 test('the player frame outranks an ad slot, and ads are dropped entirely', () => {
-  const api = run([
+  const { api } = run([
     frame({ src: 'https://ads.example/banner/300x250' }, [300, 250]),
     frame({ src: 'https://vidsrc.to/embed/movie/1611767', allowfullscreen: '' }, [1280, 700]),
     frame({ src: 'https://doubleclick.net/adframe' }, [970, 250]),
@@ -71,7 +77,7 @@ test('the player frame outranks an ad slot, and ads are dropped entirely', () =>
 });
 
 test('a media file is never offered as a page to navigate into', () => {
-  const api = run([
+  const { api } = run([
     frame({ src: 'https://cdn.example/movie/trailer.mp4' }, [1280, 700]),
     frame({ src: 'https://cdn.example/live/stream.m3u8?t=1' }, [1280, 700]),
   ]);
@@ -80,14 +86,14 @@ test('a media file is never offered as a page to navigate into', () => {
 });
 
 test('a small side frame is never dominant, even if it is player-shaped', () => {
-  const api = run([frame({ src: 'https://player.example/embed/abc' }, [320, 180])]);
+  const { api } = run([frame({ src: 'https://player.example/embed/abc' }, [320, 180])]);
   const frames = api.frames();
   assert.equal(frames.length, 1);
   assert.ok(frames[0].ratio < 0.30, 'the native side must refuse to hop into this');
 });
 
 test('lazy frames are found, duplicates collapse, unknown sizes report zero', () => {
-  const api = run([
+  const { api } = run([
     frame({ 'data-src': 'https://2embed.cc/embed/1611767' }, [0, 0]),
     frame({ src: 'https://2embed.cc/embed/1611767' }, [0, 0]),
     frame({ src: 'about:blank' }, [1280, 720]),
@@ -97,4 +103,38 @@ test('lazy frames are found, duplicates collapse, unknown sizes report zero', ()
   assert.equal(frames[0].url, 'https://2embed.cc/embed/1611767');
   assert.equal(frames[0].w, 0);
   assert.equal(frames[0].ratio, 0);
+});
+
+test('a video inside a shadow root is found and reported', () => {
+  const video = {
+    tagName: 'VIDEO',
+    currentTime: 12,
+    paused: false,
+    ended: false,
+    duration: 600,
+    currentSrc: 'blob:https://photos.google.com/abc',
+    clientWidth: 640,
+    clientHeight: 360,
+    addEventListener() {},
+  };
+  const host = {
+    tagName: 'DIV',
+    shadowRoot: { querySelectorAll: (selector) => (selector === '*' || selector === 'video' ? [video] : []) },
+  };
+
+  const { events } = run([], [1280, 720], { nodes: [host] });
+  const detected = events.filter((event) => event.type === 'detected');
+  assert.equal(detected.length, 1, 'the shadow video should be detected');
+  assert.equal(detected[0].src, 'blob:https://photos.google.com/abc');
+
+  const probe = events.filter((event) => event.type === 'probe').pop();
+  assert.equal(probe.videos, 1);
+});
+
+test('an empty page reports itself instead of staying silent', () => {
+  const { events } = run([]);
+  const probe = events.filter((event) => event.type === 'probe').pop();
+  assert.equal(probe.videos, 0);
+  assert.equal(probe.frames, 0);
+  assert.equal(probe.host, 'site.test');
 });

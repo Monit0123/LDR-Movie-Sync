@@ -105,8 +105,42 @@
     return out;
   }
 
+  /**
+   * Last resort: walk shadow roots.
+   *
+   * Web components — Google's players among them — keep their <video> inside a
+   * shadow tree, which querySelectorAll can never see. Cheap enough if it runs
+   * a couple of times a second at most, and only while nothing was found.
+   */
+  function shadowVideos() {
+    var out = [];
+    var budget = 6000;
+
+    function walk(root, depth) {
+      if (!root || depth > 6 || budget <= 0) return;
+      var nodes = [];
+      try { nodes = root.querySelectorAll('*'); } catch (e) { return; }
+      for (var i = 0; i < nodes.length && budget > 0; i++) {
+        budget--;
+        var el = nodes[i];
+        if (el.tagName === 'VIDEO') out.push(el);
+        if (el.shadowRoot) walk(el.shadowRoot, depth + 1);
+      }
+    }
+
+    walk(document, 0);
+    return out;
+  }
+
   function pick() {
     var list = collectVideos(document, [], 0);
+    if (!list.length) {
+      var now = Date.now();
+      if (now - (S.lastDeep || 0) > 2500) {
+        S.lastDeep = now;
+        list = shadowVideos();
+      }
+    }
     if (!list.length) return null;
     list.sort(function (a, b) {
       var ap = a.currentTime > 0 && !a.paused ? 1 : 0;
@@ -188,6 +222,21 @@
     send('frames', { frames: list, count: list.length });
   }
 
+  /**
+   * A heartbeat describing what is on the page, so the app can say *why*
+   * nothing is happening instead of showing an empty status line.
+   */
+  function reportProbe(hasVideo) {
+    var now = Date.now();
+    if (now - (S.lastProbe || 0) < 2000) return;
+    S.lastProbe = now;
+    send('probe', {
+      videos: hasVideo ? 1 : 0,
+      frames: frameList().length,
+      host: location.hostname
+    });
+  }
+
   function scan() {
     var v = pick();
     if (v && v !== S.video) {
@@ -198,6 +247,7 @@
       attach(v);
     }
     if (!v) reportFrames();
+    reportProbe(!!v);
   }
 
   window.__flicksync = {

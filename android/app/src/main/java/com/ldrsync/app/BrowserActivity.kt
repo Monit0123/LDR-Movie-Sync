@@ -237,6 +237,24 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
         }
     }
 
+    /**
+     * Say what the page contains. "It just opens a web page and nothing else"
+     * is a miserable experience; the line should say which of the three states
+     * we are in — watching, framed, or still waiting for a player.
+     */
+    private fun showProbe(event: JSONObject) {
+        if (SystemClock.elapsedRealtime() < suppressShareUntil) return
+        if (event.optInt("videos", 0) > 0) return // the sharing status is better
+
+        val frames = event.optInt("frames", 0)
+        val text = if (frames > 0) {
+            if (frames == 1) "No video in the page — 1 embedded player" else "No video in the page — $frames embedded players"
+        } else {
+            "No video yet — press play in the page"
+        }
+        if (binding.syncLabel.text.toString() != text) binding.syncLabel.text = text
+    }
+
     private fun relayBase(): String = SyncSession.serverUrl.ifBlank { SyncSession.savedServer(this) }
 
     /**
@@ -278,11 +296,17 @@ class BrowserActivity : AppCompatActivity(), SyncSession.Observer {
     // -------------------------------------------------------------- page events
 
     private fun onPageEvent(event: JSONObject) {
-        // A page that frames its player has no <video> of its own to report —
-        // step into the frame and leave the pending-seek state alone.
-        if (event.optString("type") == "frames") {
-            followEmbeddedPlayer(event)
-            return
+        // These two describe the page rather than a video; they must not
+        // disturb the pending-seek state or the last reported position.
+        when (event.optString("type")) {
+            "frames" -> {
+                followEmbeddedPlayer(event)
+                return
+            }
+            "probe" -> {
+                showProbe(event)
+                return
+            }
         }
 
         lastEvent = event

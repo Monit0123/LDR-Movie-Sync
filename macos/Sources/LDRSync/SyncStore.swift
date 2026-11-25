@@ -32,6 +32,7 @@ final class SyncStore: ObservableObject {
     /// because embed players refuse to run for anyone else.
     var webEmbedder: String?
     private var webHops = 0
+    private var probedURL: String?
     private var webSeen: Set<String> = []
     @Published var webCommand: WebCommand?
     @Published var needsUnmute = false
@@ -416,6 +417,10 @@ final class SyncStore: ObservableObject {
             followEmbeddedPlayer(payload)
             return
         }
+        if type == "probe" {
+            handleProbe(payload)
+            return
+        }
         let pos = payload["position"] as? Double ?? 0
         let paused = payload["paused"] as? Bool ?? true
         let seconds = payload["duration"] as? Double ?? 0
@@ -478,7 +483,23 @@ final class SyncStore: ObservableObject {
         }
     }
 
-    /// A frame worth navigating into: it covers most of the window, or its
+    /// Say once per page what we can see, so an empty screen is never silent.
+    private func handleProbe(_ payload: [String: Any]) {
+        let videos = payload["videos"] as? Int ?? 0
+        guard videos == 0 else { return }
+        let frames = payload["frames"] as? Int ?? 0
+        let url = webURL?.absoluteString ?? ""
+        guard probedURL != url else { return }
+        probedURL = url
+        if frames > 0 {
+            flash(frames == 1 ? "No video in the page — 1 embedded player"
+                              : "No video in the page — \(frames) embedded players")
+        } else {
+            flash("No video yet — press play in the page")
+        }
+    }
+
+
     /// size is unknown but it is the only frame on the page.
     private func isDominantFramePrinciple(_ frame: [String: Any], total: Int) -> Bool {
         let ratio = frame["ratio"] as? Double ?? 0
